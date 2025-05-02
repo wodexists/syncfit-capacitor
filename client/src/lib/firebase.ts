@@ -48,12 +48,66 @@ export async function signInWithGoogle(): Promise<{success: boolean, error?: str
   } catch (error) {
     console.error("Google sign in error:", error);
     
-    // Check for unauthorized domain error
-    if (error && typeof error === 'object' && 'code' in error && error.code === 'auth/unauthorized-domain') {
-      return { 
-        success: false, 
-        error: "Firebase authentication error: This domain is not authorized. Please add this Replit domain to your Firebase project's authorized domains list in the Firebase console under Authentication → Settings → Authorized domains."
-      };
+    // Check for specific auth errors
+    const errorObj = error as any;
+    if (errorObj && typeof errorObj === 'object' && 'code' in errorObj) {
+      const errorCode = errorObj.code as string;
+      
+      if (errorCode === 'auth/unauthorized-domain') {
+        return { 
+          success: false, 
+          error: "Firebase authentication error: This domain is not authorized. Please add this Replit domain to your Firebase project's authorized domains list in the Firebase console under Authentication → Settings → Authorized domains."
+        };
+      }
+      
+      if (errorCode === 'auth/operation-not-allowed') {
+        return {
+          success: false,
+          error: "Firebase authentication error: Google sign-in is not enabled. Please enable Google authentication in the Firebase console under Authentication → Sign-in method."
+        };
+      }
+      
+      if (errorCode === 'auth/popup-closed-by-user') {
+        return {
+          success: false,
+          error: "Authentication cancelled: You closed the popup window. Please try again."
+        };
+      }
+      
+      if (errorCode.includes('redirect_uri_mismatch') || errorCode.includes('redirect-uri-mismatch')) {
+        return {
+          success: false,
+          error: "Authentication error: Redirect URI mismatch. Please add your Replit domain as an authorized redirect URI in the Google Cloud Console under APIs & Services → Credentials → OAuth 2.0 Client IDs."
+        };
+      }
+    }
+    
+    // Deep check for redirect URI mismatch in any error structure
+    
+    // Check error message string
+    if (errorObj && errorObj.message && typeof errorObj.message === 'string') {
+      if (errorObj.message.includes('redirect_uri_mismatch') || 
+          errorObj.message.includes('redirect URI mismatch') ||
+          errorObj.message.includes('Error 400')) {
+        return {
+          success: false,
+          error: "Authentication error: Redirect URI mismatch. Please add your Replit domain as an authorized redirect URI in the Google Cloud Console under APIs & Services → Credentials → OAuth 2.0 Client IDs."
+        };
+      }
+    }
+    
+    // Check customData from Firebase
+    if (errorObj && errorObj.customData) {
+      const customData = errorObj.customData;
+      
+      // Check serverResponse for redirect_uri_mismatch
+      if (customData.serverResponse && typeof customData.serverResponse === 'string' &&
+          customData.serverResponse.includes('redirect_uri_mismatch')) {
+        return {
+          success: false,
+          error: "Authentication error: Redirect URI mismatch. Please add your Replit domain as an authorized redirect URI in the Google Cloud Console under APIs & Services → Credentials → OAuth 2.0 Client IDs."
+        };
+      }
     }
     
     return { 
