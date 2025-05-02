@@ -60,18 +60,18 @@ export default function RecurringWorkoutForm({
   
   // Create mutation for recurring workouts
   const createRecurringMutation = useMutation({
-    mutationFn: (recurringPattern: RecurringPattern) => {
-      return apiRequest('/api/calendar/create-recurring-events', {
-        method: 'POST',
-        body: {
-          workoutName,
-          startTime,
-          endTime,
-          pattern: recurringPattern
-        }
+    mutationFn: async (recurringPattern: RecurringPattern) => {
+      const response = await apiRequest('/api/calendar/create-recurring-events', 'POST', {
+        workoutName,
+        startTime,
+        endTime,
+        pattern: recurringPattern
       });
+      
+      // Parse the JSON response
+      return await response.json();
     },
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       toast({
         title: "Recurring workouts scheduled",
         description: `Successfully created ${data.count} recurring workouts`,

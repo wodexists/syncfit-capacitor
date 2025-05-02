@@ -25,7 +25,7 @@ export default function CalendarSelector() {
   const queryClient = useQueryClient();
 
   // Query to fetch available calendars
-  const { data: calendars, isLoading, error } = useQuery({
+  const { data: calendars, isLoading, error } = useQuery<Calendar[]>({
     queryKey: ['/api/calendar/calendars'],
     refetchOnWindowFocus: false,
   });
@@ -33,10 +33,7 @@ export default function CalendarSelector() {
   // Mutation to save selected calendars
   const saveMutation = useMutation({
     mutationFn: (calendarIds: string[]) => {
-      return apiRequest('/api/calendar/selected-calendars', {
-        method: 'POST',
-        body: { calendarIds }
-      });
+      return apiRequest('/api/calendar/selected-calendars', 'POST', { calendarIds });
     },
     onSuccess: () => {
       toast({

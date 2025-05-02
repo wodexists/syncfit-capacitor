@@ -6,11 +6,24 @@ import { useEffect, useState } from "react";
 import { formatDateTimeRange, findAvailableTimeSlots, TimeSlot } from "@/lib/calendar";
 import { formatWorkoutDuration, scheduleWorkout, type Workout } from "@/lib/workouts";
 import { useToast } from "@/hooks/use-toast";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { CheckIcon, Clock, Dumbbell } from "lucide-react";
+import { 
+  CheckIcon, 
+  Clock, 
+  Dumbbell, 
+  Calendar, 
+  Bell, 
+  RotateCw,
+  ChevronRight,
+  Loader2
+} from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
+import RecurringWorkoutForm from "./RecurringWorkoutForm";
 
 type SchedulingMode = "smart" | "manual";
+type SchedulingTab = "single" | "recurring";
 
 interface SchedulingModalProps {
   isOpen: boolean;
@@ -20,8 +33,10 @@ interface SchedulingModalProps {
 
 export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: SchedulingModalProps) {
   const [mode, setMode] = useState<SchedulingMode>("smart");
+  const [scheduleTab, setScheduleTab] = useState<SchedulingTab>("single");
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<string | null>(null);
   const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
+  const [scheduledEvents, setScheduledEvents] = useState<any[]>([]);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -31,8 +46,79 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
     enabled: !selectedWorkout,
   });
 
+  // Fetch user preferences to check if recurring workouts are enabled
+  const { data: userPreferences } = useQuery<any>({
+    queryKey: ['/api/user-preferences'],
+    refetchOnWindowFocus: false,
+  });
+
+  // Check if recurring workouts are enabled
+  const recurringEnabled = userPreferences?.enableRecurring || false;
+
   // Default to first workout if none selected
   const workout = selectedWorkout || (workouts && workouts.length > 0 ? workouts[0] : undefined);
+
+  // Create mutation for scheduling single workouts
+  const scheduleMutation = useMutation({
+    mutationFn: async ({ 
+      workoutId, 
+      startTime, 
+      endTime, 
+      workoutName 
+    }: { 
+      workoutId: number, 
+      startTime: string, 
+      endTime: string, 
+      workoutName: string 
+    }) => {
+      // First check for conflicts
+      const conflictCheck = await apiRequest('/api/calendar/create-event', 'POST', {
+        workoutName,
+        startTime,
+        endTime
+      });
+      
+      const calendarData = await conflictCheck.json();
+      
+      if (!calendarData.success) {
+        throw new Error(calendarData.message || 'Calendar conflict detected');
+      }
+      
+      // If no conflicts, schedule in our database
+      const scheduledWorkout = await scheduleWorkout(
+        workoutId,
+        startTime,
+        endTime,
+        calendarData.eventId
+      );
+      
+      return { 
+        scheduledWorkout, 
+        calendarEvent: calendarData 
+      };
+    },
+    onSuccess: (data) => {
+      const startDate = new Date(data.scheduledWorkout.startTime);
+      const endDate = new Date(data.scheduledWorkout.endTime);
+      
+      toast({
+        title: "Workout scheduled!",
+        description: `${workout?.name} scheduled for ${formatDateTimeRange(startDate, endDate)}`,
+        variant: "default",
+      });
+      
+      // Invalidate queries that depend on scheduled workouts
+      queryClient.invalidateQueries({ queryKey: ['/api/scheduled-workouts'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/scheduled-workouts/upcoming'] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Failed to schedule workout",
+        description: error instanceof Error ? error.message : "An unknown error occurred",
+        variant: "destructive",
+      });
+    }
+  });
 
   // Fetch available time slots when modal opens or workout changes
   useEffect(() => {
@@ -50,6 +136,9 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
     
     if (isOpen) {
       fetchTimeSlots();
+      // Reset state when modal opens
+      setScheduleTab("single");
+      setScheduledEvents([]);
     }
   }, [isOpen, workout]);
 
@@ -70,45 +159,12 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
         throw new Error("Selected time slot not found");
       }
       
-      // Schedule the workout in our database
-      const scheduledWorkout = await scheduleWorkout(
-        workout.id,
-        selectedSlot.start,
-        selectedSlot.end
-      );
-      
-      // Also create the event in Google Calendar
-      try {
-        const calendarResponse = await apiRequest('POST', '/api/calendar/create-event', {
-          workoutName: workout.name,
-          startTime: selectedSlot.start,
-          endTime: selectedSlot.end
-        });
-        
-        const calendarData = await calendarResponse.json();
-        
-        if (calendarData.success && calendarData.eventId) {
-          // If we have the scheduled workout ID and the calendar event was created successfully,
-          // we would ideally update the scheduled workout with the Google event ID
-          console.log('Calendar event created:', calendarData.eventId);
-        }
-      } catch (calendarError) {
-        // If creating the calendar event fails, we still want to keep the scheduled workout
-        console.error('Error creating calendar event:', calendarError);
-        // We could show a warning toast here, but for now we'll continue silently
-      }
-      
-      toast({
-        title: "Workout scheduled!",
-        description: `${workout.name} scheduled for ${formatDateTimeRange(
-          new Date(selectedSlot.start),
-          new Date(selectedSlot.end)
-        )}`,
+      scheduleMutation.mutate({
+        workoutId: workout.id,
+        startTime: selectedSlot.start,
+        endTime: selectedSlot.end,
+        workoutName: workout.name
       });
-      
-      // Invalidate queries that depend on scheduled workouts
-      queryClient.invalidateQueries({ queryKey: ['/api/scheduled-workouts'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/scheduled-workouts/upcoming'] });
       
       onClose();
     } catch (error) {
@@ -120,106 +176,188 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
     }
   };
 
+  const handleRecurringSuccess = (events: any) => {
+    setScheduledEvents(events);
+    
+    toast({
+      title: "Recurring workouts scheduled!",
+      description: `Successfully scheduled ${events.length} occurrences of ${workout?.name}`,
+      variant: "default",
+    });
+    
+    // Invalidate queries that depend on scheduled workouts
+    queryClient.invalidateQueries({ queryKey: ['/api/scheduled-workouts'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/scheduled-workouts/upcoming'] });
+  };
+
   if (!workout) {
     return null;
   }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-[550px]">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold">Schedule Workout</DialogTitle>
         </DialogHeader>
         
         <div className="py-4">
-          <p className="mb-4">Would you like SyncFit to find free time slots or add workout time manually?</p>
-          
-          <div className="space-y-3 mb-4">
-            <button
-              className={`w-full flex items-center justify-between ${
-                mode === "smart" 
-                  ? "bg-primary bg-opacity-10 border border-primary" 
-                  : "bg-white border border-gray-300"
-              } rounded-md p-3 text-left`}
-              onClick={() => setMode("smart")}
-            >
-              <div className="flex items-center">
-                <span className="material-icons text-primary mr-3">schedule</span>
-                <div>
-                  <h3 className={`font-medium ${mode === "smart" ? "text-primary" : ""}`}>Smart Scheduling</h3>
-                  <p className="text-xs text-gray-600">Find the best time slots based on your calendar</p>
-                </div>
-              </div>
-              <span className="material-icons text-primary">
-                {mode === "smart" ? "check_circle" : "radio_button_unchecked"}
-              </span>
-            </button>
-            
-            <button
-              className={`w-full flex items-center justify-between ${
-                mode === "manual" 
-                  ? "bg-primary bg-opacity-10 border border-primary" 
-                  : "bg-white border border-gray-300"
-              } rounded-md p-3 text-left`}
-              onClick={() => setMode("manual")}
-            >
-              <div className="flex items-center">
-                <span className={`material-icons ${mode === "manual" ? "text-primary" : "text-gray-600"} mr-3`}>edit_calendar</span>
-                <div>
-                  <h3 className={`font-medium ${mode === "manual" ? "text-primary" : ""}`}>Manual Scheduling</h3>
-                  <p className="text-xs text-gray-600">Choose your own time for the workout</p>
-                </div>
-              </div>
-              <span className={`material-icons ${mode === "manual" ? "text-primary" : "text-gray-300"}`}>
-                {mode === "manual" ? "check_circle" : "radio_button_unchecked"}
-              </span>
-            </button>
-          </div>
-          
-          <div className="bg-gray-100 rounded-md p-3 mb-4">
-            <h3 className="font-medium mb-2">{workout.name}</h3>
-            <div className="flex items-center text-sm text-gray-600 mb-1">
-              <Clock className="h-4 w-4 mr-1" />
-              Duration: {formatWorkoutDuration(workout.duration)}
-            </div>
-            <div className="flex items-center text-sm text-gray-600">
-              <Dumbbell className="h-4 w-4 mr-1" />
-              Equipment: {workout.equipment || "None"}
-            </div>
-          </div>
-          
-          <h3 className="font-medium mb-2">Recommended Time Slots</h3>
-          
-          {availableSlots.length > 0 ? (
-            <RadioGroup value={selectedTimeSlot || undefined} onValueChange={setSelectedTimeSlot}>
-              <div className="space-y-2">
-                {availableSlots.map((slot, index) => {
-                  const startDate = new Date(slot.start);
-                  const endDate = new Date(slot.end);
-                  const timeRangeText = formatDateTimeRange(startDate, endDate);
-                  
-                  return (
-                    <div key={index} className="calendar-time-slot rounded-md p-2 flex items-center">
-                      <RadioGroupItem value={slot.start} id={`slot-${index}`} className="mr-2" />
-                      <Label htmlFor={`slot-${index}`} className="text-sm flex-grow">
-                        {timeRangeText}
-                        {slot.label && <div className="text-xs text-gray-600">{slot.label}</div>}
-                      </Label>
-                    </div>
-                  );
-                })}
-              </div>
-            </RadioGroup>
-          ) : (
-            <div className="text-center py-3 text-gray-500">
-              No available time slots found. Try a different date or duration.
-            </div>
+          {recurringEnabled && (
+            <Tabs value={scheduleTab} onValueChange={(value) => setScheduleTab(value as SchedulingTab)} className="mb-6">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="single" className="flex items-center">
+                  <Calendar className="h-4 w-4 mr-2" />
+                  Single Workout
+                </TabsTrigger>
+                <TabsTrigger value="recurring" className="flex items-center">
+                  <RotateCw className="h-4 w-4 mr-2" />
+                  Recurring
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
           )}
+          
+          <TabsContent value="single" className="mt-0">
+            <p className="mb-4">Would you like SyncFit to find free time slots or add workout time manually?</p>
+            
+            <div className="space-y-3 mb-4">
+              <button
+                className={`w-full flex items-center justify-between ${
+                  mode === "smart" 
+                    ? "bg-primary bg-opacity-10 border border-primary" 
+                    : "bg-white border border-gray-300"
+                } rounded-md p-3 text-left`}
+                onClick={() => setMode("smart")}
+              >
+                <div className="flex items-center">
+                  <Clock className="text-primary h-5 w-5 mr-3" />
+                  <div>
+                    <h3 className={`font-medium ${mode === "smart" ? "text-primary" : ""}`}>Smart Scheduling</h3>
+                    <p className="text-xs text-gray-600">Find the best time slots based on your calendar</p>
+                  </div>
+                </div>
+                <CheckIcon className={`h-5 w-5 ${mode === "smart" ? "text-primary" : "text-gray-300"}`} />
+              </button>
+              
+              <button
+                className={`w-full flex items-center justify-between ${
+                  mode === "manual" 
+                    ? "bg-primary bg-opacity-10 border border-primary" 
+                    : "bg-white border border-gray-300"
+                } rounded-md p-3 text-left`}
+                onClick={() => setMode("manual")}
+              >
+                <div className="flex items-center">
+                  <Calendar className={`h-5 w-5 mr-3 ${mode === "manual" ? "text-primary" : "text-gray-600"}`} />
+                  <div>
+                    <h3 className={`font-medium ${mode === "manual" ? "text-primary" : ""}`}>Manual Scheduling</h3>
+                    <p className="text-xs text-gray-600">Choose your own time for the workout</p>
+                  </div>
+                </div>
+                <CheckIcon className={`h-5 w-5 ${mode === "manual" ? "text-primary" : "text-gray-300"}`} />
+              </button>
+            </div>
+            
+            <div className="bg-muted rounded-md p-3 mb-4">
+              <h3 className="font-medium mb-2">{workout.name}</h3>
+              <div className="flex items-center text-sm text-muted-foreground mb-1">
+                <Clock className="h-4 w-4 mr-1" />
+                Duration: {formatWorkoutDuration(workout.duration)}
+              </div>
+              <div className="flex items-center text-sm text-muted-foreground">
+                <Dumbbell className="h-4 w-4 mr-1" />
+                Equipment: {workout.equipment || "None"}
+              </div>
+            </div>
+            
+            <h3 className="font-medium mb-2">Recommended Time Slots</h3>
+            
+            {availableSlots.length > 0 ? (
+              <RadioGroup value={selectedTimeSlot || undefined} onValueChange={setSelectedTimeSlot}>
+                <div className="space-y-2">
+                  {availableSlots.map((slot, index) => {
+                    const startDate = new Date(slot.start);
+                    const endDate = new Date(slot.end);
+                    const timeRangeText = formatDateTimeRange(startDate, endDate);
+                    
+                    return (
+                      <div key={index} className="calendar-time-slot border rounded-md p-2 flex items-center hover:bg-muted">
+                        <RadioGroupItem value={slot.start} id={`slot-${index}`} className="mr-2" />
+                        <Label htmlFor={`slot-${index}`} className="text-sm flex-grow cursor-pointer">
+                          {timeRangeText}
+                          {slot.label && <div className="text-xs text-muted-foreground">{slot.label}</div>}
+                        </Label>
+                      </div>
+                    );
+                  })}
+                </div>
+              </RadioGroup>
+            ) : (
+              <div className="text-center py-3 text-muted-foreground">
+                No available time slots found. Try a different date or duration.
+              </div>
+            )}
+          </TabsContent>
+          
+          <TabsContent value="recurring" className="mt-0">
+            {selectedTimeSlot && workout && scheduleTab === "recurring" ? (
+              <RecurringWorkoutForm
+                workoutName={workout.name}
+                startTime={selectedTimeSlot}
+                endTime={availableSlots.find(slot => slot.start === selectedTimeSlot)?.end || ""}
+                onSuccess={handleRecurringSuccess}
+                onCancel={() => setScheduleTab("single")}
+              />
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                Please select a time slot first
+              </div>
+            )}
+            
+            {scheduledEvents.length > 0 && (
+              <div className="mt-4 border rounded-md p-3">
+                <h3 className="font-medium mb-2">Scheduled Recurring Workouts</h3>
+                <div className="text-sm text-muted-foreground mb-2">
+                  Successfully scheduled {scheduledEvents.length} workouts
+                </div>
+                <Button variant="outline" onClick={onClose} className="w-full">
+                  Close
+                </Button>
+              </div>
+            )}
+          </TabsContent>
         </div>
         
         <DialogFooter className="flex justify-end space-x-3">
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSchedule} disabled={!selectedTimeSlot}>Add to Calendar</Button>
+          {scheduleTab === "single" ? (
+            <Button 
+              onClick={handleSchedule} 
+              disabled={!selectedTimeSlot || scheduleMutation.isPending}
+              className="flex items-center"
+            >
+              {scheduleMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Scheduling...
+                </>
+              ) : (
+                <>
+                  <Calendar className="mr-2 h-4 w-4" />
+                  Add to Calendar
+                </>
+              )}
+            </Button>
+          ) : recurringEnabled && scheduleTab === "recurring" && scheduledEvents.length === 0 ? (
+            <Button 
+              onClick={() => setScheduleTab("single")} 
+              variant="secondary"
+              className="flex items-center"
+            >
+              <ChevronRight className="mr-2 h-4 w-4" />
+              Continue
+            </Button>
+          ) : null}
         </DialogFooter>
       </DialogContent>
     </Dialog>

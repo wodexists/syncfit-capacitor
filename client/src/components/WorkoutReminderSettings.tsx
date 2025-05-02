@@ -17,7 +17,7 @@ export default function WorkoutReminderSettings() {
   const queryClient = useQueryClient();
 
   // Query to fetch user preferences
-  const { data: preferences, isLoading, error } = useQuery({
+  const { data: preferences, isLoading, error } = useQuery<any>({
     queryKey: ['/api/user-preferences'],
     refetchOnWindowFocus: false,
   });
@@ -25,10 +25,7 @@ export default function WorkoutReminderSettings() {
   // Mutation to save reminder preferences
   const reminderMutation = useMutation({
     mutationFn: (minutes: number) => {
-      return apiRequest('/api/calendar/reminder-preferences', {
-        method: 'POST',
-        body: { reminderMinutes: minutes }
-      });
+      return apiRequest('/api/calendar/reminder-preferences', 'POST', { reminderMinutes: minutes });
     },
     onSuccess: () => {
       toast({
@@ -52,10 +49,7 @@ export default function WorkoutReminderSettings() {
   // Mutation to save recurring workout preferences
   const recurringMutation = useMutation({
     mutationFn: (enableRecurring: boolean) => {
-      return apiRequest('/api/user-preferences', {
-        method: 'POST',
-        body: { enableRecurring }
-      });
+      return apiRequest('/api/user-preferences', 'POST', { enableRecurring });
     },
     onSuccess: () => {
       toast({
