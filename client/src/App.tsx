@@ -11,6 +11,8 @@ import Profile from "@/pages/Profile";
 import Login from "@/pages/Login";
 import Header from "@/components/Header";
 import Navigation from "@/components/Navigation";
+import CalendarSelector from "@/components/CalendarSelector";
+import WorkoutReminderSettings from "@/components/WorkoutReminderSettings";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 
@@ -33,7 +35,10 @@ function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   // Check authentication status
-  const { data: authData, isLoading } = useQuery({
+  const { data: authData, isLoading } = useQuery<{
+    authenticated: boolean;
+    user?: User;
+  }>({
     queryKey: ['/api/auth/user'],
     retry: false,
   });
@@ -84,6 +89,25 @@ function App() {
               </Route>
               <Route path="/profile">
                 {authContext.isAuthenticated ? <Profile user={authContext.user} /> : <Login />}
+              </Route>
+              
+              {/* Calendar Settings Pages */}
+              <Route path="/calendar-selection">
+                {authContext.isAuthenticated ? 
+                  <div className="container mx-auto px-4 py-6">
+                    <h2 className="text-2xl font-semibold mb-6">Calendar Selection</h2>
+                    <CalendarSelector />
+                  </div> 
+                : <Login />}
+              </Route>
+              
+              <Route path="/reminder-settings">
+                {authContext.isAuthenticated ? 
+                  <div className="container mx-auto px-4 py-6">
+                    <h2 className="text-2xl font-semibold mb-6">Reminder Settings</h2>
+                    <WorkoutReminderSettings />
+                  </div> 
+                : <Login />}
               </Route>
               
               {/* Fallback to 404 */}

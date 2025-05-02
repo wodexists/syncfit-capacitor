@@ -45,12 +45,12 @@ export default function Profile({ user }: ProfileProps) {
   const [isLoading, setIsLoading] = useState(false);
 
   // Fetch workout categories
-  const { data: categories, isLoading: categoriesLoading } = useQuery({
+  const { data: categories, isLoading: categoriesLoading } = useQuery<any[]>({
     queryKey: ['/api/workout-categories'],
   });
 
   // Fetch user preferences
-  const { data: preferences, isLoading: preferencesLoading } = useQuery({
+  const { data: preferences, isLoading: preferencesLoading } = useQuery<any>({
     queryKey: ['/api/user-preferences'],
   });
 
@@ -223,6 +223,57 @@ export default function Profile({ user }: ProfileProps) {
                       <div className="h-5 w-5 bg-green-500 rounded-full mr-2"></div>
                       <span className="text-sm">Connected</span>
                     </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Calendar Integration */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>Calendar Integration</CardTitle>
+            <CardDescription>
+              Manage your calendar connections and preferences
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-medium mb-2">Google Calendar</h3>
+                <div className="flex items-center mb-4">
+                  <div className="h-5 w-5 bg-green-500 rounded-full mr-2"></div>
+                  <span className="text-sm">Connected</span>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <h4 className="font-medium mb-2">Calendar Selection</h4>
+                    <p className="text-sm text-muted-foreground mb-2">
+                      Choose which calendars to consider when finding available workout times
+                    </p>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => window.location.href = '/calendar-selection'}
+                      className="w-full"
+                    >
+                      Manage Calendars
+                    </Button>
+                  </div>
+                  
+                  <div>
+                    <h4 className="font-medium mb-2">Reminder Settings</h4>
+                    <p className="text-sm text-muted-foreground mb-2">
+                      Customize how and when you receive workout reminders
+                    </p>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => window.location.href = '/reminder-settings'}
+                      className="w-full"
+                    >
+                      Manage Reminders
+                    </Button>
                   </div>
                 </div>
               </div>
