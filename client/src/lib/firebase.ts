@@ -2,10 +2,15 @@ import { initializeApp } from "firebase/app";
 import { getAuth, signInWithRedirect, getRedirectResult, GoogleAuthProvider } from "firebase/auth";
 import { apiRequest } from "@/lib/queryClient";
 
+// Get current domain to use for auth
+const currentDomain = window.location.hostname;
+console.log(`Using current domain for auth: ${currentDomain}`);
+
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  // Firebase will use this domain for auth handlers
-  authDomain: `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.firebaseapp.com`,
+  // Using the current domain directly to avoid Firebase auth domain restrictions
+  // This should work as long as the domain is added to Firebase authorized domains
+  authDomain: currentDomain,
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
   storageBucket: `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.appspot.com`,
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
