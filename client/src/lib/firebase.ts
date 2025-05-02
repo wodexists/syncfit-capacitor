@@ -28,6 +28,10 @@ provider.addScope('email');
 function processAuthError(error: any): {success: boolean, error: string} {
   console.error("Authentication error:", error);
   
+  // Log the current domain and auth configuration for troubleshooting
+  console.error(`Troubleshooting info - Current URL: ${window.location.href}`);
+  console.error(`Troubleshooting info - Auth Domain: ${auth.app.options.authDomain}`);
+  
   const errorObj = error as any;
   
   // Check for specific Firebase error codes
