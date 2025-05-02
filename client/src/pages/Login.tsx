@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { signInWithGoogle, handleAuthRedirect } from "@/lib/firebase";
+import { signInWithGoogle } from "@/lib/firebase";
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -14,29 +14,11 @@ export default function Login() {
   const [authError, setAuthError] = useState<string | null>(null);
   const { toast } = useToast();
   
-  // Check if the user is returning from a redirect
+  // Since we're now using popup authentication instead of redirect,
+  // we don't need to check for redirect results anymore
   useEffect(() => {
-    async function checkAuthRedirect() {
-      try {
-        setIsCheckingRedirect(true);
-        const result = await handleAuthRedirect();
-        
-        if (result.success) {
-          // Successfully authenticated via redirect
-          setLocation("/dashboard");
-        } else if (result.error) {
-          // There was an error during the redirect flow
-          setAuthError(result.error);
-        }
-      } catch (error) {
-        console.error("Error checking redirect:", error);
-      } finally {
-        setIsCheckingRedirect(false);
-      }
-    }
-    
-    checkAuthRedirect();
-  }, [setLocation]);
+    setIsCheckingRedirect(false);
+  }, []);
   
   const handleGoogleLogin = async () => {
     try {

@@ -1,20 +1,19 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, signInWithRedirect, getRedirectResult, GoogleAuthProvider } from "firebase/auth";
+import { getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider } from "firebase/auth";
 import { apiRequest } from "@/lib/queryClient";
 
-// Get current domain to use for auth
-const currentDomain = window.location.hostname;
-console.log(`Using current domain for auth: ${currentDomain}`);
-
+// Use the original Firebase auth domain
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  // Using the current domain directly to avoid Firebase auth domain restrictions
-  // This should work as long as the domain is added to Firebase authorized domains
-  authDomain: currentDomain,
+  authDomain: `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.firebaseapp.com`,
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
   storageBucket: `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.appspot.com`,
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
+
+// Log Firebase configuration info for debugging
+console.log(`Firebase config - projectId: ${import.meta.env.VITE_FIREBASE_PROJECT_ID}`);
+console.log(`Current URL: ${window.location.href}`);
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
@@ -159,16 +158,40 @@ export async function handleAuthRedirect(): Promise<{success: boolean, error?: s
  */
 export async function signInWithGoogle(): Promise<{success: boolean, error?: string}> {
   try {
-    console.log("Starting Google sign-in with redirect flow...");
+    console.log("Starting Google sign-in with popup flow...");
     console.log(`Current auth domain: ${auth.app.options.authDomain}`);
     console.log(`Current window location: ${window.location.href}`);
     
-    // Use redirect for more reliable auth flow (especially in Replit preview windows)
-    await signInWithRedirect(auth, provider);
+    // Use popup instead of redirect, which may work better in Replit's environment
+    const result = await signInWithPopup(auth, provider);
     
-    // This code shouldn't be reached in normal operation as the redirect happens
-    console.log("This log should not appear - redirect should have happened");
-    return { success: true }; 
+    // If we get here, the popup auth was successful
+    console.log("Popup authentication successful");
+    
+    // Get Google OAuth tokens
+    const credential = GoogleAuthProvider.credentialFromResult(result);
+    if (!credential) {
+      throw new Error("Failed to get credentials from Google");
+    }
+    
+    const accessToken = credential.accessToken;
+    const user = result.user;
+    
+    console.log(`Successfully authenticated ${user.email} with Google`);
+    
+    // Store user and tokens in our backend
+    console.log("Sending user data to backend...");
+    await apiRequest('POST', '/api/auth/google', {
+      googleId: user.uid,
+      email: user.email,
+      displayName: user.displayName,
+      accessToken,
+      refreshToken: '', // Google doesn't return refresh token via popup flow
+      profilePicture: user.photoURL || undefined
+    });
+    
+    console.log("User successfully authenticated and data stored in backend");
+    return { success: true };
   } catch (error) {
     console.error("Google sign in error:", error);
     return processAuthError(error);
