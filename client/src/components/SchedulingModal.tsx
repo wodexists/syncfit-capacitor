@@ -69,11 +69,33 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
         throw new Error("Selected time slot not found");
       }
       
-      await scheduleWorkout(
+      // Schedule the workout in our database
+      const scheduledWorkout = await scheduleWorkout(
         workout.id,
         selectedSlot.start,
         selectedSlot.end
       );
+      
+      // Also create the event in Google Calendar
+      try {
+        const calendarResponse = await apiRequest('POST', '/api/calendar/create-event', {
+          workoutName: workout.name,
+          startTime: selectedSlot.start,
+          endTime: selectedSlot.end
+        });
+        
+        const calendarData = await calendarResponse.json();
+        
+        if (calendarData.success && calendarData.eventId) {
+          // If we have the scheduled workout ID and the calendar event was created successfully,
+          // we would ideally update the scheduled workout with the Google event ID
+          console.log('Calendar event created:', calendarData.eventId);
+        }
+      } catch (calendarError) {
+        // If creating the calendar event fails, we still want to keep the scheduled workout
+        console.error('Error creating calendar event:', calendarError);
+        // We could show a warning toast here, but for now we'll continue silently
+      }
       
       toast({
         title: "Workout scheduled!",

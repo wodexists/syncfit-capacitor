@@ -7,13 +7,6 @@ import session from "express-session";
 import MemoryStore from "memorystore";
 import * as GoogleCalendarService from './services/googleCalendar';
 
-// Extend Express Session
-declare module 'express-session' {
-  interface SessionData {
-    userId?: number;
-  }
-}
-
 // Time slot definition
 const TimeSlotSchema = z.object({
   start: z.string().datetime(),
