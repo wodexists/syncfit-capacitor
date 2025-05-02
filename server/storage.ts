@@ -5,6 +5,7 @@ import {
   scheduledWorkouts, ScheduledWorkout, InsertScheduledWorkout,
   userPreferences, UserPreference, InsertUserPreference
 } from "@shared/schema";
+import { FirestoreStorage } from './firestore';
 
 export interface IStorage {
   // User operations
@@ -318,4 +319,9 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+// Choose the appropriate storage implementation based on environment
+const useFirestore = process.env.USE_FIRESTORE === 'true' || process.env.NODE_ENV === 'production';
+
+export const storage = useFirestore 
+  ? new FirestoreStorage() 
+  : new MemStorage();
