@@ -1,13 +1,20 @@
 # Deployment Guide for SyncFit
 
-## Fixing the Build Error
+## Deployment Setup in Replit
 
-If you're encountering a build error when deploying in Replit, you can try these steps:
+For successful deployment in Replit, follow these steps:
 
-1. Click on the "Edit commands and secrets" button in the deployment page
-2. Update the build command to: `npm install && npm run build`
-3. Update the run command to: `npm run start`
-4. Try redeploying
+1. Click on "Deploy" in the Replit interface
+2. Click on "Edit commands and secrets" in the deployment page 
+3. Set the following in the deployment configuration:
+   - Build command: `npm install && npm run build`
+   - Run command: `node start.js`
+4. Add all environment variables (see below)
+5. Click "Deploy"
+
+## Fixing Common Build Errors
+
+If you encounter the error `app/invalid-credential` or `Failed to parse private key`, it means your Firebase private key isn't formatted correctly. The key needs to have actual newlines, not the string `\n`. Our code handles this automatically now.
 
 ## Firebase Configuration
 
@@ -27,10 +34,18 @@ For Google authentication to work correctly after deployment:
 Make sure all environment variables (Firebase config) are properly set in the deployed environment:
 
 1. In Replit deployment settings, add all the necessary environment variables:
+
+   **Client-side variables (used by browser):**
    - `VITE_FIREBASE_API_KEY`
    - `VITE_FIREBASE_PROJECT_ID`
    - `VITE_FIREBASE_APP_ID`
-   - Any other secrets used by the application
+   
+   **Server-side variables (used by Node.js):**
+   - `FIREBASE_PROJECT_ID` - Same as the client-side project ID
+   - `FIREBASE_CLIENT_EMAIL` - Service account email from Firebase Admin SDK
+   - `FIREBASE_PRIVATE_KEY` - Service account private key from Firebase Admin SDK
+   
+   > **Important:** The FIREBASE_PRIVATE_KEY should be the full private key including the `-----BEGIN PRIVATE KEY-----` and `-----END PRIVATE KEY-----` lines. Ensure it's properly encoded if added via the environment variables UI.
 
 ## Testing the Deployed Application
 
