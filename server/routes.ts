@@ -41,29 +41,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
   };
 
   /**
-   * Google Auth Routes
+   * Auth Routes
    */
-  // Store Google tokens
+  // Google auth handler
   app.post('/api/auth/google', async (req: Request, res: Response) => {
     try {
       const { googleId, email, displayName, accessToken, refreshToken, profilePicture } = req.body;
+      
+      console.log(`Processing Google auth for user: ${email}`);
+      
+      if (!googleId || !email) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Invalid authentication data: missing required fields" 
+        });
+      }
       
       // Find existing user or create new one
       let user = await storage.getUserByGoogleId(googleId);
       
       if (!user) {
         // Create new user
+        console.log(`Creating new user with Google ID: ${googleId}`);
         user = await storage.createUser({
           googleId,
           email,
-          username: displayName,
-          googleAccessToken: accessToken,
-          googleRefreshToken: refreshToken,
-          profilePicture
+          username: displayName || email.split('@')[0],
+          googleAccessToken: accessToken || '',
+          googleRefreshToken: refreshToken || '',
+          profilePicture: profilePicture || ''
         });
       } else {
         // Update tokens
-        user = await storage.updateUserTokens(user.id, accessToken, refreshToken) || user;
+        console.log(`Updating tokens for existing user: ${user.id}`);
+        user = await storage.updateUserTokens(user.id, accessToken || '', refreshToken || '') || user;
       }
       
       // Set session
@@ -78,12 +89,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
           profilePicture: user.profilePicture
         }
       });
+      
+      console.log(`User ${user.id} successfully authenticated with Google`);
+    
     } catch (error) {
       console.error('Google auth error:', error);
       res.status(500).json({ message: 'Authentication failed', error: String(error) });
     }
   });
 
+  // Logout
+  // Email auth handler
+  app.post('/api/auth/email', async (req: Request, res: Response) => {
+    try {
+      const { firebaseUid, email, displayName } = req.body;
+      
+      console.log(`Processing Email auth for user: ${email}`);
+      
+      if (!firebaseUid || !email) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Invalid authentication data: missing required fields" 
+        });
+      }
+      
+      // Find existing user or create new one
+      let user = await storage.getUserByEmail(email);
+      
+      if (!user) {
+        // Create new user
+        console.log(`Creating new user with email: ${email}`);
+        user = await storage.createUser({
+          email,
+          username: displayName || email.split('@')[0],
+          firebaseUid
+        });
+      }
+      
+      // Set session
+      req.session.userId = user.id;
+      
+      res.status(200).json({ 
+        success: true, 
+        user: { 
+          id: user.id,
+          email: user.email,
+          username: user.username,
+          profilePicture: user.profilePicture
+        }
+      });
+      
+      console.log(`User ${user.id} successfully authenticated with email`);
+    } catch (error) {
+      console.error('Email auth error:', error);
+      res.status(500).json({ message: 'Authentication failed', error: String(error) });
+    }
+  });
+  
   // Logout
   app.post('/api/auth/logout', (req: Request, res: Response) => {
     req.session.destroy(() => {

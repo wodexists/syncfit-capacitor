@@ -1,5 +1,12 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider } from "firebase/auth";
+import { 
+  getAuth, 
+  signInWithPopup,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  getRedirectResult,
+  GoogleAuthProvider 
+} from "firebase/auth";
 import { apiRequest } from "@/lib/queryClient";
 
 // Use the original Firebase auth domain
@@ -153,47 +160,136 @@ export async function handleAuthRedirect(): Promise<{success: boolean, error?: s
 }
 
 /**
- * Initiate Google Sign In process using redirect flow
- * This will redirect the user to Google's authentication page
+ * Initiate Google Sign In process
+ * This tries to handle the OAuth configuration issues gracefully
  */
 export async function signInWithGoogle(): Promise<{success: boolean, error?: string}> {
   try {
-    console.log("Starting Google sign-in with popup flow...");
+    console.log("Starting Google sign-in with custom flow...");
     console.log(`Current auth domain: ${auth.app.options.authDomain}`);
     console.log(`Current window location: ${window.location.href}`);
     
-    // Use popup instead of redirect, which may work better in Replit's environment
-    const result = await signInWithPopup(auth, provider);
+    // This is an important workaround - we need to select a different approach for Google auth
+    // that can work properly in Replit's preview environment without redirect URI config
     
-    // If we get here, the popup auth was successful
-    console.log("Popup authentication successful");
-    
-    // Get Google OAuth tokens
-    const credential = GoogleAuthProvider.credentialFromResult(result);
-    if (!credential) {
-      throw new Error("Failed to get credentials from Google");
+    // First, try using popup auth which works in many scenarios including Replit
+    try {
+      // Customize the Google Auth Provider to force select account every time
+      // This helps avoid issues with remembered accounts
+      provider.setCustomParameters({
+        prompt: 'select_account'
+      });
+      
+      console.log("Attempting popup authentication...");
+      const result = await signInWithPopup(auth, provider);
+      
+      // If we get here, the popup auth was successful
+      console.log("Popup authentication successful");
+      
+      // Get Google OAuth tokens
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      if (!credential) {
+        throw new Error("Failed to get credentials from Google");
+      }
+      
+      const accessToken = credential.accessToken;
+      const user = result.user;
+      
+      console.log(`Successfully authenticated ${user.email} with Google`);
+      
+      // Store user and tokens in our backend
+      console.log("Sending user data to backend...");
+      await apiRequest('POST', '/api/auth/google', {
+        googleId: user.uid,
+        email: user.email,
+        displayName: user.displayName,
+        accessToken,
+        refreshToken: '', // Google doesn't provide refresh token via popup
+        profilePicture: user.photoURL || undefined
+      });
+      
+      console.log("User successfully authenticated and data stored in backend");
+      return { success: true };
+    } catch (popupError) {
+      console.error("Popup authentication failed, error:", popupError);
+      
+      // Check if this was just the user closing the popup
+      if (popupError.code === 'auth/popup-closed-by-user') {
+        return {
+          success: false,
+          error: "Authentication cancelled: You closed the popup window. Please try again."
+        };
+      }
+      
+      // If popup fails with a redirect URI mismatch, display helpful error
+      if (popupError.message && 
+          (popupError.message.includes('redirect_uri_mismatch') || 
+           popupError.message.includes('Error 400'))) {
+        return {
+          success: false,
+          error: "Firebase authentication error: This domain is not properly configured for Google Sign-In. Please go to Firebase console → Authentication → Sign-in Method → Google → Authorized domains and add your Replit domain."
+        };
+      }
+      
+      throw popupError; // Re-throw for further handling
     }
+  } catch (error) {
+    console.error("Google sign in error (final):", error);
+    return processAuthError(error);
+  }
+}
+
+/**
+ * Register a new user with email and password
+ * This is a Firebase-only approach that doesn't require OAuth configuration
+ */
+export async function registerWithEmail(email: string, password: string): Promise<{success: boolean, error?: string, user?: any}> {
+  try {
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
     
-    const accessToken = credential.accessToken;
-    const user = result.user;
+    console.log(`Successfully registered ${user.email} with email/password`);
     
-    console.log(`Successfully authenticated ${user.email} with Google`);
-    
-    // Store user and tokens in our backend
-    console.log("Sending user data to backend...");
-    await apiRequest('POST', '/api/auth/google', {
-      googleId: user.uid,
-      email: user.email,
-      displayName: user.displayName,
-      accessToken,
-      refreshToken: '', // Google doesn't return refresh token via popup flow
-      profilePicture: user.photoURL || undefined
+    // Store user in our backend
+    await apiRequest('POST', '/api/auth/email', {
+      firebaseUid: user.uid,
+      email: user.email || '',
+      displayName: user.email ? user.email.split('@')[0] : 'User', // Use part of email as display name
     });
     
-    console.log("User successfully authenticated and data stored in backend");
-    return { success: true };
+    return { 
+      success: true,
+      user
+    };
   } catch (error) {
-    console.error("Google sign in error:", error);
+    console.error("Email registration error:", error);
+    return processAuthError(error);
+  }
+}
+
+/**
+ * Sign in a user with email and password
+ * This is a Firebase-only approach that doesn't require OAuth configuration
+ */
+export async function signInWithEmail(email: string, password: string): Promise<{success: boolean, error?: string, user?: any}> {
+  try {
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
+    
+    console.log(`Successfully signed in ${user.email} with email/password`);
+    
+    // Update backend session
+    await apiRequest('POST', '/api/auth/email', {
+      firebaseUid: user.uid,
+      email: user.email
+    });
+    
+    return { 
+      success: true,
+      user
+    };
+  } catch (error) {
+    console.error("Email login error:", error);
     return processAuthError(error);
   }
 }
