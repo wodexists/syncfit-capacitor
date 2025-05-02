@@ -210,28 +210,36 @@ export async function signInWithGoogle(): Promise<{success: boolean, error?: str
       
       console.log("User successfully authenticated and data stored in backend");
       return { success: true };
-    } catch (popupError) {
-      console.error("Popup authentication failed, error:", popupError);
+    } catch (err) {
+      console.error("Popup authentication failed, error:", err);
       
-      // Check if this was just the user closing the popup
-      if (popupError.code === 'auth/popup-closed-by-user') {
-        return {
-          success: false,
-          error: "Authentication cancelled: You closed the popup window. Please try again."
-        };
+      // Handle specific error conditions
+      if (err instanceof Error) {
+        // Check for specific known error codes for Firebase Auth
+        if ('code' in err && typeof (err as any).code === 'string') {
+          const firebaseError = err as { code: string };
+          
+          if (firebaseError.code === 'auth/popup-closed-by-user') {
+            return {
+              success: false,
+              error: "Authentication cancelled: You closed the popup window. Please try again."
+            };
+          }
+        }
+        
+        // Check for redirect URI mismatch in error message
+        if (err.message && (
+            err.message.includes('redirect_uri_mismatch') || 
+            err.message.includes('Error 400')
+          )) {
+          return {
+            success: false,
+            error: "Firebase authentication error: This domain is not properly configured for Google Sign-In. Please go to Firebase console → Authentication → Sign-in Method → Google → Authorized domains and add your Replit domain."
+          };
+        }
       }
       
-      // If popup fails with a redirect URI mismatch, display helpful error
-      if (popupError.message && 
-          (popupError.message.includes('redirect_uri_mismatch') || 
-           popupError.message.includes('Error 400'))) {
-        return {
-          success: false,
-          error: "Firebase authentication error: This domain is not properly configured for Google Sign-In. Please go to Firebase console → Authentication → Sign-in Method → Google → Authorized domains and add your Replit domain."
-        };
-      }
-      
-      throw popupError; // Re-throw for further handling
+      throw err; // Re-throw for further handling
     }
   } catch (error) {
     console.error("Google sign in error (final):", error);

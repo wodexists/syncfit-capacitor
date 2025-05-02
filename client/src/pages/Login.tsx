@@ -161,6 +161,18 @@ export default function Login() {
                 <AlertDescription className="text-xs text-left mt-2 ml-6">
                   {authError}
                 </AlertDescription>
+                {authError.includes('authorized domains') && (
+                  <div className="mt-3 text-xs border-t border-red-200 pt-2">
+                    <p className="font-semibold">How to fix:</p>
+                    <ol className="list-decimal text-left ml-4 mt-1 space-y-1">
+                      <li>Go to Firebase Console</li>
+                      <li>Open your project</li>
+                      <li>Go to Authentication → Settings</li>
+                      <li>Under 'Authorized domains', add: <code className="bg-red-100 px-1">{window.location.hostname}</code></li>
+                      <li>Save and try again</li>
+                    </ol>
+                  </div>
+                )}
               </Alert>
             )}
           </CardFooter>

@@ -193,6 +193,7 @@ export class MemStorage implements IStorage {
       ...user, 
       id,
       googleId: user.googleId || null,
+      firebaseUid: user.firebaseUid || null,
       googleAccessToken: user.googleAccessToken || null,
       googleRefreshToken: user.googleRefreshToken || null,
       profilePicture: user.profilePicture || null
