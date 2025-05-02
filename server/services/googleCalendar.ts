@@ -358,15 +358,24 @@ export async function getCalendarList(
       return [];
     }
     
-    return response.data.items.map(cal => ({
-      id: cal.id || '',
-      summary: cal.summary || '',
-      description: cal.description,
-      primary: cal.primary,
-      selected: cal.selected,
-      backgroundColor: cal.backgroundColor,
-      foregroundColor: cal.foregroundColor
-    }));
+    return response.data.items.map(cal => {
+      // Convert null values to undefined
+      const description = cal.description === null ? undefined : cal.description;
+      const primary = cal.primary === null ? undefined : cal.primary;
+      const selected = cal.selected === null ? undefined : cal.selected;
+      const backgroundColor = cal.backgroundColor === null ? undefined : cal.backgroundColor;
+      const foregroundColor = cal.foregroundColor === null ? undefined : cal.foregroundColor;
+      
+      return {
+        id: cal.id || '',
+        summary: cal.summary || '',
+        description,
+        primary,
+        selected,
+        backgroundColor,
+        foregroundColor
+      };
+    });
   } catch (error) {
     console.error('Error getting calendar list:', error);
     throw error;

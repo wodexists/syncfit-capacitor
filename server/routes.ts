@@ -383,6 +383,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const searchDate = date ? new Date(date) : new Date();
       const duration = durationMinutes ? parseInt(durationMinutes) : 30;
       
+      // Get user's selected calendars if any
+      const userPrefs = await storage.getUserPreferences(userId);
+      let selectedCalendars: string[] | undefined;
+      
+      if (userPrefs && userPrefs.selectedCalendars) {
+        try {
+          selectedCalendars = JSON.parse(userPrefs.selectedCalendars);
+        } catch (e) {
+          console.error('Error parsing selected calendars:', e);
+        }
+      }
+      
       // Call the Google Calendar service
       const availableSlots = await GoogleCalendarService.findAvailableTimeSlots(
         user.googleAccessToken,
@@ -504,18 +516,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Google access token not available' });
       }
       
-      const { workoutName, startTime, endTime } = req.body;
+      const { workoutName, startTime, endTime, googleEventId } = req.body;
       
       if (!workoutName || !startTime || !endTime) {
         return res.status(400).json({ message: 'Missing required fields' });
       }
+      
+      // Get user's reminder preferences if any
+      const userPrefs = await storage.getUserPreferences(userId);
+      let reminderMinutes: number | undefined;
+      
+      if (userPrefs && userPrefs.reminderMinutes) {
+        reminderMinutes = userPrefs.reminderMinutes;
+      }
+      
+      // First check if this time slot has conflicts
+      const isAvailable = await GoogleCalendarService.checkTimeSlotConflicts(
+        user.googleAccessToken,
+        startTime,
+        endTime
+      );
+      
+      if (!isAvailable) {
+        return res.status(409).json({ 
+          success: false, 
+          message: 'Time slot has conflicts with existing events' 
+        });
+      }
+      
+      // If we have a googleEventId, this means we're re-scheduling
+      // We would delete the previous event and create a new one
       
       // Create the event in Google Calendar
       const createdEvent = await GoogleCalendarService.createWorkoutEvent(
         user.googleAccessToken,
         workoutName,
         startTime,
-        endTime
+        endTime,
+        reminderMinutes
       );
       
       res.status(201).json({ 
@@ -526,6 +564,169 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error creating calendar event:', error);
       res.status(500).json({ message: 'Failed to create calendar event', error: String(error) });
+    }
+  });
+  
+  // Create recurring workout events
+  app.post('/api/calendar/create-recurring-events', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session.userId as number;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !user.googleAccessToken) {
+        return res.status(400).json({ message: 'Google access token not available' });
+      }
+      
+      const { workoutName, startTime, endTime, pattern } = req.body;
+      
+      if (!workoutName || !startTime || !endTime || !pattern) {
+        return res.status(400).json({ message: 'Missing required fields' });
+      }
+      
+      // Get user's reminder preferences if any
+      const userPrefs = await storage.getUserPreferences(userId);
+      let reminderMinutes: number | undefined;
+      
+      if (userPrefs && userPrefs.reminderMinutes) {
+        reminderMinutes = userPrefs.reminderMinutes;
+      }
+      
+      // Create recurring events
+      const createdEvents = await GoogleCalendarService.createRecurringWorkouts(
+        user.googleAccessToken,
+        workoutName,
+        startTime,
+        endTime,
+        pattern,
+        reminderMinutes
+      );
+      
+      // Return the created events' IDs and details
+      const eventSummary = createdEvents.map(event => ({
+        id: event.id,
+        htmlLink: event.htmlLink,
+        start: event.start?.dateTime,
+        end: event.end?.dateTime
+      }));
+      
+      res.status(201).json({ 
+        success: true, 
+        count: createdEvents.length,
+        events: eventSummary
+      });
+    } catch (error) {
+      console.error('Error creating recurring workout events:', error);
+      res.status(500).json({ message: 'Failed to create recurring workout events', error: String(error) });
+    }
+  });
+  
+  // Get available calendars
+  app.get('/api/calendar/calendars', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session.userId as number;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !user.googleAccessToken) {
+        return res.status(400).json({ message: 'Google access token not available' });
+      }
+      
+      // Get the list of calendars
+      const calendars = await GoogleCalendarService.getCalendarList(user.googleAccessToken);
+      
+      // Get user preferences to mark selected calendars
+      const userPrefs = await storage.getUserPreferences(userId);
+      let selectedCalendarIds: string[] = [];
+      
+      if (userPrefs && userPrefs.selectedCalendars) {
+        try {
+          selectedCalendarIds = JSON.parse(userPrefs.selectedCalendars);
+        } catch (e) {
+          console.error('Error parsing selected calendars:', e);
+        }
+      }
+      
+      // Mark selected calendars based on user preferences
+      const calendarList = calendars.map(cal => ({
+        ...cal,
+        selected: cal.primary || selectedCalendarIds.includes(cal.id)
+      }));
+      
+      res.status(200).json(calendarList);
+    } catch (error) {
+      console.error('Error getting calendar list:', error);
+      res.status(500).json({ message: 'Failed to get calendar list', error: String(error) });
+    }
+  });
+  
+  // Save calendar selection preferences
+  app.post('/api/calendar/selected-calendars', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session.userId as number;
+      const { calendarIds } = req.body;
+      
+      if (!Array.isArray(calendarIds)) {
+        return res.status(400).json({ message: 'CalendarIds must be an array' });
+      }
+      
+      // Get existing preferences or create new ones
+      let userPrefs = await storage.getUserPreferences(userId);
+      
+      if (userPrefs) {
+        // Update existing preferences
+        userPrefs = await storage.updateUserPreferences(userId, {
+          selectedCalendars: JSON.stringify(calendarIds)
+        });
+      } else {
+        // Create new preferences
+        userPrefs = await storage.createUserPreferences({
+          userId,
+          selectedCalendars: JSON.stringify(calendarIds)
+        });
+      }
+      
+      res.status(200).json({ 
+        success: true, 
+        selectedCalendars: calendarIds 
+      });
+    } catch (error) {
+      console.error('Error saving calendar selection:', error);
+      res.status(500).json({ message: 'Failed to save calendar selection', error: String(error) });
+    }
+  });
+  
+  // Save reminder preferences
+  app.post('/api/calendar/reminder-preferences', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session.userId as number;
+      const { reminderMinutes } = req.body;
+      
+      if (typeof reminderMinutes !== 'number' || reminderMinutes < 0) {
+        return res.status(400).json({ message: 'Reminder minutes must be a positive number' });
+      }
+      
+      // Get existing preferences or create new ones
+      let userPrefs = await storage.getUserPreferences(userId);
+      
+      if (userPrefs) {
+        // Update existing preferences
+        userPrefs = await storage.updateUserPreferences(userId, {
+          reminderMinutes
+        });
+      } else {
+        // Create new preferences
+        userPrefs = await storage.createUserPreferences({
+          userId,
+          reminderMinutes
+        });
+      }
+      
+      res.status(200).json({ 
+        success: true, 
+        reminderMinutes
+      });
+    } catch (error) {
+      console.error('Error saving reminder preferences:', error);
+      res.status(500).json({ message: 'Failed to save reminder preferences', error: String(error) });
     }
   });
 
