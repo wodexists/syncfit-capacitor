@@ -40,6 +40,21 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Initialize Firebase data if needed
+  if (process.env.USE_FIRESTORE === 'true') {
+    try {
+      const { storage } = await import('./storage');
+      
+      // Initialize demo data for Firestore if it's empty
+      if ('initializeData' in storage) {
+        log('Initializing Firestore data if needed...', 'firebase');
+        await storage.initializeData();
+      }
+    } catch (error) {
+      console.error('Error initializing Firestore data:', error);
+    }
+  }
+
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

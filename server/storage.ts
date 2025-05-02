@@ -39,6 +39,9 @@ export interface IStorage {
   getUserPreferences(userId: number): Promise<UserPreference | undefined>;
   createUserPreferences(preferences: InsertUserPreference): Promise<UserPreference>;
   updateUserPreferences(userId: number, updates: Partial<InsertUserPreference>): Promise<UserPreference | undefined>;
+  
+  // Data initialization (optional)
+  initializeData?(): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -67,11 +70,21 @@ export class MemStorage implements IStorage {
     this.scheduledWorkoutIdCounter = 1;
     this.userPrefIdCounter = 1;
     
-    // Initialize with default workout categories
-    this.initializeData();
+    // We'll load the initial data later when needed through the initializeData method
+    // that can be called explicitly
+    this._loadInitialData();
+  }
+  
+  private async _loadInitialData(): Promise<void> {
+    // Call initialize data asynchronously to set up initial data
+    try {
+      await this.initializeData();
+    } catch (error) {
+      console.error('Error initializing in-memory data:', error);
+    }
   }
 
-  private initializeData() {
+  async initializeData(): Promise<void> {
     // Add default categories
     const categories = [
       { name: "Cardio", description: "Cardiovascular exercises to improve heart health" },
@@ -176,7 +189,14 @@ export class MemStorage implements IStorage {
 
   async createUser(user: InsertUser): Promise<User> {
     const id = this.userIdCounter++;
-    const newUser: User = { ...user, id };
+    const newUser: User = { 
+      ...user, 
+      id,
+      googleId: user.googleId || null,
+      googleAccessToken: user.googleAccessToken || null,
+      googleRefreshToken: user.googleRefreshToken || null,
+      profilePicture: user.profilePicture || null
+    };
     this.users.set(id, newUser);
     return newUser;
   }
@@ -236,7 +256,16 @@ export class MemStorage implements IStorage {
 
   async createWorkout(workout: InsertWorkout): Promise<Workout> {
     const id = this.workoutIdCounter++;
-    const newWorkout: Workout = { ...workout, id };
+    const newWorkout: Workout = { 
+      ...workout, 
+      id,
+      description: workout.description || null,
+      equipment: workout.equipment || null,
+      difficulty: workout.difficulty || null,
+      imageUrl: workout.imageUrl || null,
+      rating: workout.rating || null,
+      ratingCount: workout.ratingCount || null
+    };
     this.workouts.set(id, newWorkout);
     return newWorkout;
   }
@@ -252,7 +281,11 @@ export class MemStorage implements IStorage {
 
   async createWorkoutCategory(category: InsertWorkoutCategory): Promise<WorkoutCategory> {
     const id = this.categoryIdCounter++;
-    const newCategory: WorkoutCategory = { ...category, id };
+    const newCategory: WorkoutCategory = { 
+      ...category, 
+      id,
+      description: category.description || null 
+    };
     this.workoutCategories.set(id, newCategory);
     return newCategory;
   }

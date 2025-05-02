@@ -46,6 +46,8 @@ export class FirestoreStorage implements IStorage {
     
     // Configure Firestore
     this.db.settings({ ignoreUndefinedProperties: true });
+    
+    console.log('Firestore connection established successfully');
   }
 
   // User operations
