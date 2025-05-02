@@ -8,6 +8,7 @@ import {
   UserPreference, InsertUserPreference
 } from '../shared/schema';
 import { IStorage } from './storage';
+import { getFirebaseConfig, getFirebasePrivateKey } from './config';
 
 export class FirestoreStorage implements IStorage {
   private db: Firestore;
@@ -27,10 +28,13 @@ export class FirestoreStorage implements IStorage {
       
       if (process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_CLIENT_EMAIL) {
         // Use service account credentials
+        const config = getFirebaseConfig();
+        console.log('Initializing Firebase with project ID:', config.projectId);
+        
         const serviceAccount: ServiceAccount = {
-          projectId,
-          privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-          clientEmail: process.env.FIREBASE_CLIENT_EMAIL
+          projectId: config.projectId,
+          privateKey: config.privateKey,
+          clientEmail: config.clientEmail
         };
         
         initializeApp({
