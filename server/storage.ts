@@ -251,7 +251,11 @@ export class MemStorage implements IStorage {
     
     // Default: return all workouts sorted by rating
     return Array.from(this.workouts.values())
-      .sort((a, b) => b.rating - a.rating);
+      .sort((a, b) => {
+        const ratingA = a.rating || 0;
+        const ratingB = b.rating || 0;
+        return ratingB - ratingA;
+      });
   }
 
   async createWorkout(workout: InsertWorkout): Promise<Workout> {
@@ -310,7 +314,12 @@ export class MemStorage implements IStorage {
 
   async createScheduledWorkout(scheduledWorkout: InsertScheduledWorkout): Promise<ScheduledWorkout> {
     const id = this.scheduledWorkoutIdCounter++;
-    const newScheduledWorkout: ScheduledWorkout = { ...scheduledWorkout, id };
+    const newScheduledWorkout: ScheduledWorkout = { 
+      ...scheduledWorkout, 
+      id,
+      googleEventId: scheduledWorkout.googleEventId || null,
+      isCompleted: scheduledWorkout.isCompleted || null
+    };
     this.scheduledWorkouts.set(id, newScheduledWorkout);
     return newScheduledWorkout;
   }
@@ -337,7 +346,17 @@ export class MemStorage implements IStorage {
 
   async createUserPreferences(preferences: InsertUserPreference): Promise<UserPreference> {
     const id = this.userPrefIdCounter++;
-    const newPreferences: UserPreference = { ...preferences, id };
+    const newPreferences: UserPreference = { 
+      ...preferences, 
+      id,
+      preferredWorkoutTimes: preferences.preferredWorkoutTimes || null,
+      preferredWorkoutDuration: preferences.preferredWorkoutDuration || null,
+      preferredCategories: preferences.preferredCategories || null,
+      selectedCalendars: preferences.selectedCalendars || null,
+      reminderMinutes: preferences.reminderMinutes || null,
+      enableRecurring: preferences.enableRecurring || null,
+      recurringPattern: preferences.recurringPattern || null
+    };
     this.userPreferences.set(id, newPreferences);
     return newPreferences;
   }
