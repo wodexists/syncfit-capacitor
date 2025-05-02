@@ -6,6 +6,7 @@ import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
+import { RedeployButton } from "@/components/RedeployButton";
 
 export default function Login() {
   const [_, setLocation] = useLocation();
@@ -183,6 +184,10 @@ export default function Login() {
         <div className="mt-8 text-center text-sm text-gray-500 space-y-1">
           <p>SyncFit helps you find the perfect time for workouts</p>
           <p>We'll analyze your schedule and recommend optimal time slots</p>
+          
+          <div className="mt-6 flex justify-center">
+            <RedeployButton />
+          </div>
         </div>
       </div>
     </div>
