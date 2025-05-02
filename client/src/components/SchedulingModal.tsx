@@ -7,6 +7,7 @@ import { formatDateTimeRange, findAvailableTimeSlots, TimeSlot } from "@/lib/cal
 import { formatWorkoutDuration, scheduleWorkout, type Workout } from "@/lib/workouts";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { CheckIcon, Clock, Dumbbell } from "lucide-react";
 
 type SchedulingMode = "smart" | "manual";
@@ -25,13 +26,13 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
   const queryClient = useQueryClient();
 
   // Fetch workouts if no workout is provided
-  const { data: workouts } = useQuery({
+  const { data: workouts } = useQuery<Workout[]>({
     queryKey: ['/api/workouts'],
     enabled: !selectedWorkout,
   });
 
   // Default to first workout if none selected
-  const workout = selectedWorkout || (workouts && workouts[0]);
+  const workout = selectedWorkout || (workouts && workouts.length > 0 ? workouts[0] : undefined);
 
   // Fetch available time slots when modal opens or workout changes
   useEffect(() => {
