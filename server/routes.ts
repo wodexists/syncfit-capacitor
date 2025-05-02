@@ -1,0 +1,462 @@
+import type { Express, Request, Response } from "express";
+import { createServer, type Server } from "http";
+import { storage } from "./storage";
+import { z } from "zod";
+import { insertUserSchema, insertScheduledWorkoutSchema, insertUserPreferencesSchema } from "@shared/schema";
+import session from "express-session";
+import MemoryStore from "memorystore";
+
+// Time slot definition
+const TimeSlotSchema = z.object({
+  start: z.string().datetime(),
+  end: z.string().datetime(),
+  label: z.string().optional(),
+});
+
+export async function registerRoutes(app: Express): Promise<Server> {
+  const httpServer = createServer(app);
+  
+  // Configure session
+  const MemoryStoreClass = MemoryStore(session);
+  app.use(session({
+    cookie: { 
+      maxAge: 86400000, // One day
+      secure: process.env.NODE_ENV === 'production',
+    },
+    secret: process.env.SESSION_SECRET || 'syncfit-secret-key',
+    resave: false,
+    saveUninitialized: false,
+    store: new MemoryStoreClass({
+      checkPeriod: 86400000 // Prune expired entries every 24h
+    })
+  }));
+
+  // Auth middleware
+  const ensureAuthenticated = (req: Request, res: Response, next: Function) => {
+    if (req.session.userId) {
+      return next();
+    }
+    res.status(401).json({ message: "Unauthorized" });
+  };
+
+  /**
+   * Google Auth Routes
+   */
+  // Store Google tokens
+  app.post('/api/auth/google', async (req: Request, res: Response) => {
+    try {
+      const { googleId, email, displayName, accessToken, refreshToken, profilePicture } = req.body;
+      
+      // Find existing user or create new one
+      let user = await storage.getUserByGoogleId(googleId);
+      
+      if (!user) {
+        // Create new user
+        user = await storage.createUser({
+          googleId,
+          email,
+          username: displayName,
+          googleAccessToken: accessToken,
+          googleRefreshToken: refreshToken,
+          profilePicture
+        });
+      } else {
+        // Update tokens
+        user = await storage.updateUserTokens(user.id, accessToken, refreshToken) || user;
+      }
+      
+      // Set session
+      req.session.userId = user.id;
+      
+      res.status(200).json({ 
+        success: true, 
+        user: { 
+          id: user.id,
+          email: user.email,
+          username: user.username,
+          profilePicture: user.profilePicture
+        }
+      });
+    } catch (error) {
+      console.error('Google auth error:', error);
+      res.status(500).json({ message: 'Authentication failed', error: String(error) });
+    }
+  });
+
+  // Logout
+  app.post('/api/auth/logout', (req: Request, res: Response) => {
+    req.session.destroy(() => {
+      res.status(200).json({ success: true });
+    });
+  });
+
+  // Get current user
+  app.get('/api/auth/user', async (req: Request, res: Response) => {
+    if (!req.session.userId) {
+      return res.status(200).json({ authenticated: false });
+    }
+    
+    try {
+      const user = await storage.getUser(req.session.userId);
+      
+      if (!user) {
+        return res.status(200).json({ authenticated: false });
+      }
+      
+      res.status(200).json({
+        authenticated: true,
+        user: {
+          id: user.id,
+          email: user.email,
+          username: user.username,
+          profilePicture: user.profilePicture
+        }
+      });
+    } catch (error) {
+      console.error('Error getting user:', error);
+      res.status(500).json({ message: 'Failed to get user', error: String(error) });
+    }
+  });
+
+  /**
+   * Workout Routes
+   */
+  // Get all workouts
+  app.get('/api/workouts', async (req: Request, res: Response) => {
+    try {
+      const workouts = await storage.getWorkouts();
+      res.status(200).json(workouts);
+    } catch (error) {
+      console.error('Error getting workouts:', error);
+      res.status(500).json({ message: 'Failed to get workouts', error: String(error) });
+    }
+  });
+
+  // Get workouts by category
+  app.get('/api/workouts/category/:categoryId', async (req: Request, res: Response) => {
+    try {
+      const categoryId = parseInt(req.params.categoryId);
+      if (isNaN(categoryId)) {
+        return res.status(400).json({ message: 'Invalid category ID' });
+      }
+      
+      const workouts = await storage.getWorkoutsByCategory(categoryId);
+      res.status(200).json(workouts);
+    } catch (error) {
+      console.error('Error getting workouts by category:', error);
+      res.status(500).json({ message: 'Failed to get workouts', error: String(error) });
+    }
+  });
+
+  // Get recommended workouts
+  app.get('/api/workouts/recommended', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session.userId as number;
+      const workouts = await storage.getRecommendedWorkouts(userId);
+      res.status(200).json(workouts);
+    } catch (error) {
+      console.error('Error getting recommended workouts:', error);
+      res.status(500).json({ message: 'Failed to get recommended workouts', error: String(error) });
+    }
+  });
+
+  /**
+   * Workout Categories Routes
+   */
+  // Get all categories
+  app.get('/api/workout-categories', async (req: Request, res: Response) => {
+    try {
+      const categories = await storage.getWorkoutCategories();
+      res.status(200).json(categories);
+    } catch (error) {
+      console.error('Error getting workout categories:', error);
+      res.status(500).json({ message: 'Failed to get workout categories', error: String(error) });
+    }
+  });
+
+  /**
+   * Scheduled Workouts Routes
+   */
+  // Get user's scheduled workouts
+  app.get('/api/scheduled-workouts', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session.userId as number;
+      const scheduledWorkouts = await storage.getScheduledWorkoutsByUser(userId);
+      
+      // Get full workout details for each scheduled workout
+      const workoutsWithDetails = await Promise.all(
+        scheduledWorkouts.map(async (sw) => {
+          const workout = await storage.getWorkout(sw.workoutId);
+          return {
+            ...sw,
+            workout
+          };
+        })
+      );
+      
+      res.status(200).json(workoutsWithDetails);
+    } catch (error) {
+      console.error('Error getting scheduled workouts:', error);
+      res.status(500).json({ message: 'Failed to get scheduled workouts', error: String(error) });
+    }
+  });
+
+  // Get upcoming workouts
+  app.get('/api/scheduled-workouts/upcoming', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session.userId as number;
+      const scheduledWorkouts = await storage.getUpcomingWorkoutsByUser(userId);
+      
+      // Get full workout details for each scheduled workout
+      const workoutsWithDetails = await Promise.all(
+        scheduledWorkouts.map(async (sw) => {
+          const workout = await storage.getWorkout(sw.workoutId);
+          return {
+            ...sw,
+            workout
+          };
+        })
+      );
+      
+      res.status(200).json(workoutsWithDetails);
+    } catch (error) {
+      console.error('Error getting upcoming workouts:', error);
+      res.status(500).json({ message: 'Failed to get upcoming workouts', error: String(error) });
+    }
+  });
+
+  // Schedule a workout
+  app.post('/api/scheduled-workouts', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session.userId as number;
+      
+      // Validate request body
+      const scheduledWorkout = insertScheduledWorkoutSchema.parse({
+        ...req.body,
+        userId
+      });
+      
+      // Create scheduled workout
+      const newScheduledWorkout = await storage.createScheduledWorkout(scheduledWorkout);
+      
+      // Get workout details
+      const workout = await storage.getWorkout(newScheduledWorkout.workoutId);
+      
+      res.status(201).json({
+        ...newScheduledWorkout,
+        workout
+      });
+    } catch (error) {
+      console.error('Error scheduling workout:', error);
+      res.status(500).json({ message: 'Failed to schedule workout', error: String(error) });
+    }
+  });
+
+  // Update a scheduled workout
+  app.put('/api/scheduled-workouts/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session.userId as number;
+      const id = parseInt(req.params.id);
+      
+      if (isNaN(id)) {
+        return res.status(400).json({ message: 'Invalid workout ID' });
+      }
+      
+      // Check if workout exists and belongs to user
+      const existingWorkout = await storage.getScheduledWorkout(id);
+      if (!existingWorkout) {
+        return res.status(404).json({ message: 'Scheduled workout not found' });
+      }
+      
+      if (existingWorkout.userId !== userId) {
+        return res.status(403).json({ message: 'Not authorized to update this workout' });
+      }
+      
+      // Update workout
+      const updatedWorkout = await storage.updateScheduledWorkout(id, req.body);
+      
+      // Get workout details
+      const workout = await storage.getWorkout(updatedWorkout!.workoutId);
+      
+      res.status(200).json({
+        ...updatedWorkout,
+        workout
+      });
+    } catch (error) {
+      console.error('Error updating scheduled workout:', error);
+      res.status(500).json({ message: 'Failed to update scheduled workout', error: String(error) });
+    }
+  });
+
+  // Delete a scheduled workout
+  app.delete('/api/scheduled-workouts/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session.userId as number;
+      const id = parseInt(req.params.id);
+      
+      if (isNaN(id)) {
+        return res.status(400).json({ message: 'Invalid workout ID' });
+      }
+      
+      // Check if workout exists and belongs to user
+      const existingWorkout = await storage.getScheduledWorkout(id);
+      if (!existingWorkout) {
+        return res.status(404).json({ message: 'Scheduled workout not found' });
+      }
+      
+      if (existingWorkout.userId !== userId) {
+        return res.status(403).json({ message: 'Not authorized to delete this workout' });
+      }
+      
+      // Delete workout
+      await storage.deleteScheduledWorkout(id);
+      
+      res.status(200).json({ success: true });
+    } catch (error) {
+      console.error('Error deleting scheduled workout:', error);
+      res.status(500).json({ message: 'Failed to delete scheduled workout', error: String(error) });
+    }
+  });
+
+  /**
+   * User Preferences Routes
+   */
+  // Get user preferences
+  app.get('/api/user-preferences', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session.userId as number;
+      const preferences = await storage.getUserPreferences(userId);
+      
+      if (!preferences) {
+        return res.status(404).json({ message: 'Preferences not found' });
+      }
+      
+      res.status(200).json(preferences);
+    } catch (error) {
+      console.error('Error getting user preferences:', error);
+      res.status(500).json({ message: 'Failed to get user preferences', error: String(error) });
+    }
+  });
+
+  // Create/update user preferences
+  app.post('/api/user-preferences', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session.userId as number;
+      
+      // Check if preferences already exist
+      const existingPrefs = await storage.getUserPreferences(userId);
+      
+      if (existingPrefs) {
+        // Update existing preferences
+        const updatedPrefs = await storage.updateUserPreferences(userId, req.body);
+        return res.status(200).json(updatedPrefs);
+      } else {
+        // Create new preferences
+        const newPrefs = await storage.createUserPreferences({
+          ...req.body,
+          userId
+        });
+        return res.status(201).json(newPrefs);
+      }
+    } catch (error) {
+      console.error('Error saving user preferences:', error);
+      res.status(500).json({ message: 'Failed to save user preferences', error: String(error) });
+    }
+  });
+
+  /**
+   * Calendar Integration Routes
+   */
+  // Find available time slots based on Google Calendar data
+  app.post('/api/calendar/available-slots', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      // This is a placeholder route that would normally make API calls to Google Calendar
+      // In a real implementation, this would analyze the user's calendar and find free slots
+      
+      // Simulated time slots
+      const availableSlots = [
+        {
+          start: new Date(new Date().setHours(7, 0, 0, 0)).toISOString(),
+          end: new Date(new Date().setHours(8, 0, 0, 0)).toISOString(),
+          label: 'Before your first meeting'
+        },
+        {
+          start: new Date(new Date().setHours(12, 30, 0, 0)).toISOString(),
+          end: new Date(new Date().setHours(13, 30, 0, 0)).toISOString(),
+          label: 'Lunch break'
+        },
+        {
+          start: new Date(new Date().setHours(18, 0, 0, 0)).toISOString(),
+          end: new Date(new Date().setHours(19, 0, 0, 0)).toISOString(),
+          label: 'After work'
+        }
+      ];
+      
+      res.status(200).json(availableSlots);
+    } catch (error) {
+      console.error('Error finding available slots:', error);
+      res.status(500).json({ message: 'Failed to find available time slots', error: String(error) });
+    }
+  });
+
+  // Get today's availability timeline
+  app.get('/api/calendar/today-availability', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      // This is a placeholder route that would normally make API calls to Google Calendar
+      // In a real implementation, this would get the user's calendar for today
+      
+      // Simulated availability timeline
+      const availabilityTimeline = [
+        {
+          start: new Date(new Date().setHours(6, 0, 0, 0)).toISOString(),
+          end: new Date(new Date().setHours(7, 0, 0, 0)).toISOString(),
+          available: true,
+          label: 'Free'
+        },
+        {
+          start: new Date(new Date().setHours(7, 0, 0, 0)).toISOString(),
+          end: new Date(new Date().setHours(9, 0, 0, 0)).toISOString(),
+          available: false,
+          label: 'Morning team meeting'
+        },
+        {
+          start: new Date(new Date().setHours(9, 0, 0, 0)).toISOString(),
+          end: new Date(new Date().setHours(12, 0, 0, 0)).toISOString(),
+          available: true,
+          label: 'Free'
+        },
+        {
+          start: new Date(new Date().setHours(12, 0, 0, 0)).toISOString(),
+          end: new Date(new Date().setHours(13, 0, 0, 0)).toISOString(),
+          available: false,
+          label: 'Lunch break'
+        },
+        {
+          start: new Date(new Date().setHours(13, 0, 0, 0)).toISOString(),
+          end: new Date(new Date().setHours(17, 0, 0, 0)).toISOString(),
+          available: true,
+          label: 'Free'
+        },
+        {
+          start: new Date(new Date().setHours(17, 0, 0, 0)).toISOString(),
+          end: new Date(new Date().setHours(18, 0, 0, 0)).toISOString(),
+          available: false,
+          label: 'Team call'
+        },
+        {
+          start: new Date(new Date().setHours(18, 0, 0, 0)).toISOString(),
+          end: new Date(new Date().setHours(22, 0, 0, 0)).toISOString(),
+          available: true,
+          label: 'Free'
+        }
+      ];
+      
+      res.status(200).json(availabilityTimeline);
+    } catch (error) {
+      console.error('Error getting today\'s availability:', error);
+      res.status(500).json({ message: 'Failed to get today\'s availability', error: String(error) });
+    }
+  });
+
+  return httpServer;
+}
