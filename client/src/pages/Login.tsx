@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { signInWithGoogle } from "@/lib/firebase";
-import { useState } from "react";
+import { signInWithGoogle, handleAuthRedirect } from "@/lib/firebase";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -10,8 +10,33 @@ import { AlertCircle } from "lucide-react";
 export default function Login() {
   const [_, setLocation] = useLocation();
   const [isLoading, setIsLoading] = useState(false);
+  const [isCheckingRedirect, setIsCheckingRedirect] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
   const { toast } = useToast();
+  
+  // Check if the user is returning from a redirect
+  useEffect(() => {
+    async function checkAuthRedirect() {
+      try {
+        setIsCheckingRedirect(true);
+        const result = await handleAuthRedirect();
+        
+        if (result.success) {
+          // Successfully authenticated via redirect
+          setLocation("/dashboard");
+        } else if (result.error) {
+          // There was an error during the redirect flow
+          setAuthError(result.error);
+        }
+      } catch (error) {
+        console.error("Error checking redirect:", error);
+      } finally {
+        setIsCheckingRedirect(false);
+      }
+    }
+    
+    checkAuthRedirect();
+  }, [setLocation]);
   
   const handleGoogleLogin = async () => {
     try {
@@ -106,10 +131,10 @@ export default function Login() {
           <CardFooter className="flex flex-col space-y-3 pt-2 pb-6">
             <Button
               onClick={handleGoogleLogin}
-              disabled={isLoading}
+              disabled={isLoading || isCheckingRedirect}
               className="w-full flex items-center justify-center"
             >
-              {isLoading ? (
+              {isLoading || isCheckingRedirect ? (
                 <span className="flex items-center">
                   <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>

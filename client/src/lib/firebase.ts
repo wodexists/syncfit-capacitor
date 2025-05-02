@@ -1,9 +1,10 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, Auth, UserCredential } from "firebase/auth";
+import { getAuth, signInWithRedirect, getRedirectResult, GoogleAuthProvider } from "firebase/auth";
 import { apiRequest } from "@/lib/queryClient";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  // Firebase will use this domain for auth handlers
   authDomain: `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.firebaseapp.com`,
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
   storageBucket: `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.appspot.com`,
@@ -101,23 +102,31 @@ function processAuthError(error: any): {success: boolean, error: string} {
  */
 export async function handleAuthRedirect(): Promise<{success: boolean, error?: string}> {
   try {
+    console.log("Checking for redirect result...");
     const result = await getRedirectResult(auth);
     
     // User might come to the page without being redirected from authentication
     if (!result) {
+      console.log("No redirect result found - user is not returning from auth redirect");
       return { success: false };
     }
+    
+    console.log("Redirect result found - user is returning from auth redirect");
     
     // Get Google OAuth tokens
     const credential = GoogleAuthProvider.credentialFromResult(result);
     if (!credential) {
+      console.error("No credential found in redirect result");
       throw new Error("Failed to get credentials from Google");
     }
     
     const accessToken = credential.accessToken;
     const user = result.user;
     
+    console.log(`Successfully authenticated ${user.email} with Google`);
+    
     // Store user and tokens in our backend
+    console.log("Sending user data to backend...");
     await apiRequest('POST', '/api/auth/google', {
       googleId: user.uid,
       email: user.email,
@@ -127,6 +136,7 @@ export async function handleAuthRedirect(): Promise<{success: boolean, error?: s
       profilePicture: user.photoURL || undefined
     });
     
+    console.log("User successfully authenticated and data stored in backend");
     return { success: true };
   } catch (error) {
     console.error("Google redirect result error:", error);
@@ -140,9 +150,15 @@ export async function handleAuthRedirect(): Promise<{success: boolean, error?: s
  */
 export async function signInWithGoogle(): Promise<{success: boolean, error?: string}> {
   try {
+    console.log("Starting Google sign-in with redirect flow...");
+    console.log(`Current auth domain: ${auth.app.options.authDomain}`);
+    console.log(`Current window location: ${window.location.href}`);
+    
     // Use redirect for more reliable auth flow (especially in Replit preview windows)
     await signInWithRedirect(auth, provider);
-    // This return won't actually happen as the page will redirect
+    
+    // This code shouldn't be reached in normal operation as the redirect happens
+    console.log("This log should not appear - redirect should have happened");
     return { success: true }; 
   } catch (error) {
     console.error("Google sign in error:", error);
