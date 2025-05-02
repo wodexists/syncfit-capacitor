@@ -82,6 +82,10 @@ export const userPreferences = pgTable("user_preferences", {
   preferredWorkoutTimes: text("preferred_workout_times"), // JSON string of preferred times
   preferredWorkoutDuration: integer("preferred_workout_duration"), // in minutes
   preferredCategories: text("preferred_categories"), // JSON string of category IDs
+  selectedCalendars: text("selected_calendars"), // JSON string of calendar IDs to include
+  reminderMinutes: integer("reminder_minutes"), // Minutes before workout to send reminder
+  enableRecurring: boolean("enable_recurring").default(false), // Enable recurring workouts
+  recurringPattern: text("recurring_pattern"), // JSON string of recurring workout settings
 });
 
 export const insertUserPreferencesSchema = createInsertSchema(userPreferences).pick({
@@ -89,6 +93,10 @@ export const insertUserPreferencesSchema = createInsertSchema(userPreferences).p
   preferredWorkoutTimes: true,
   preferredWorkoutDuration: true,
   preferredCategories: true,
+  selectedCalendars: true,
+  reminderMinutes: true,
+  enableRecurring: true,
+  recurringPattern: true,
 });
 
 // Export types

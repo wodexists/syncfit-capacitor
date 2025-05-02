@@ -14,6 +14,34 @@ export interface AvailabilitySlot {
   label: string;
 }
 
+export interface CalendarListItem {
+  id: string;
+  summary: string;
+  description?: string;
+  primary?: boolean;
+  selected?: boolean;
+  backgroundColor?: string;
+  foregroundColor?: string;
+}
+
+export interface RecurringPattern {
+  frequency: 'daily' | 'weekly';
+  daysOfWeek?: number[]; // 0 = Sunday, 1 = Monday, etc.
+  interval?: number; // Every X days or weeks
+  count?: number; // Number of occurrences
+  endDate?: string; // ISO date string when recurrence ends
+}
+
+export interface EventWithReminders extends calendar_v3.Schema$Event {
+  reminders?: {
+    useDefault?: boolean;
+    overrides?: Array<{
+      method: string;
+      minutes: number;
+    }>;
+  };
+}
+
 /**
  * Create an OAuth2 client for Google API calls
  * @param accessToken User's Google access token
@@ -314,23 +342,230 @@ export async function createAvailabilityTimeline(
 }
 
 /**
+ * Get a list of the user's calendars
+ * @param accessToken User's Google access token
+ * @returns List of calendars
+ */
+export async function getCalendarList(
+  accessToken: string
+): Promise<CalendarListItem[]> {
+  const calendar = getCalendarClient(accessToken);
+  
+  try {
+    const response = await calendar.calendarList.list();
+    
+    if (!response.data.items || response.data.items.length === 0) {
+      return [];
+    }
+    
+    return response.data.items.map(cal => ({
+      id: cal.id || '',
+      summary: cal.summary || '',
+      description: cal.description,
+      primary: cal.primary,
+      selected: cal.selected,
+      backgroundColor: cal.backgroundColor,
+      foregroundColor: cal.foregroundColor
+    }));
+  } catch (error) {
+    console.error('Error getting calendar list:', error);
+    throw error;
+  }
+}
+
+/**
+ * Check if a time slot has any conflicts with existing events
+ * @param accessToken User's Google access token
+ * @param startTime Start time to check
+ * @param endTime End time to check
+ * @param selectedCalendars Optional list of calendar IDs to check
+ * @returns True if the slot is free, false if there are conflicts
+ */
+export async function checkTimeSlotConflicts(
+  accessToken: string,
+  startTime: string,
+  endTime: string,
+  selectedCalendars?: string[]
+): Promise<boolean> {
+  const calendar = getCalendarClient(accessToken);
+  
+  try {
+    // If no specific calendars are provided, use primary
+    const calendarIds = selectedCalendars && selectedCalendars.length > 0 
+      ? selectedCalendars 
+      : ['primary'];
+    
+    // Request free/busy information
+    const freeBusyRequest = await calendar.freebusy.query({
+      requestBody: {
+        timeMin: startTime,
+        timeMax: endTime,
+        items: calendarIds.map(id => ({ id }))
+      }
+    });
+    
+    const busyData = freeBusyRequest.data.calendars;
+    
+    // Check if any of the selected calendars have busy times in this slot
+    if (busyData) {
+      for (const calId of Object.keys(busyData)) {
+        const calData = busyData[calId];
+        if (calData.busy && calData.busy.length > 0) {
+          return false; // Conflict found
+        }
+      }
+    }
+    
+    return true; // No conflicts
+  } catch (error) {
+    console.error('Error checking time slot conflicts:', error);
+    throw error;
+  }
+}
+
+/**
+ * Create recurring workout events
+ * @param accessToken User's Google access token
+ * @param workoutName Name of the workout
+ * @param startTime Start time of the first workout
+ * @param endTime End time of the first workout
+ * @param pattern Recurrence pattern
+ * @param reminderMinutes Optional minutes before the event to send a reminder
+ * @returns Array of created events
+ */
+export async function createRecurringWorkouts(
+  accessToken: string,
+  workoutName: string,
+  startTime: string,
+  endTime: string,
+  pattern: RecurringPattern,
+  reminderMinutes?: number
+): Promise<calendar_v3.Schema$Event[]> {
+  const calendar = getCalendarClient(accessToken);
+  
+  try {
+    const events: calendar_v3.Schema$Event[] = [];
+    const startDate = new Date(startTime);
+    const endDate = new Date(endTime);
+    const duration = endDate.getTime() - startDate.getTime();
+    
+    // Calculate dates based on pattern
+    const datesToCreate: Date[] = [];
+    datesToCreate.push(startDate); // Add the first date
+    
+    if (pattern.frequency === 'daily') {
+      const interval = pattern.interval || 1;
+      const count = pattern.count || 7; // Default to 7 occurrences
+      
+      // Create daily events
+      for (let i = 1; i < count; i++) {
+        const newDate = new Date(startDate);
+        newDate.setDate(newDate.getDate() + (i * interval));
+        datesToCreate.push(newDate);
+      }
+    } else if (pattern.frequency === 'weekly') {
+      const daysOfWeek = pattern.daysOfWeek || [];
+      const count = pattern.count || 4; // Default to 4 weeks
+      
+      if (daysOfWeek.length > 0) {
+        // For specified days of the week
+        let currentDate = new Date(startDate);
+        let createdCount = 1; // Start with 1 for the initial date
+        
+        // Loop for a reasonable number of weeks to find all occurrences
+        for (let week = 0; week < count; week++) {
+          for (let day = 0; day < 7; day++) {
+            // Skip the first date which is already added
+            if (week === 0 && day === startDate.getDay()) continue;
+            
+            if (daysOfWeek.includes(day)) {
+              const newDate = new Date(startDate);
+              newDate.setDate(newDate.getDate() - newDate.getDay() + day + (week * 7));
+              datesToCreate.push(newDate);
+              createdCount++;
+              
+              if (createdCount >= count) break;
+            }
+          }
+          if (createdCount >= count) break;
+        }
+      } else {
+        // Simple weekly recurrence
+        for (let i = 1; i < count; i++) {
+          const newDate = new Date(startDate);
+          newDate.setDate(newDate.getDate() + (i * 7));
+          datesToCreate.push(newDate);
+        }
+      }
+    }
+    
+    // Check for conflicts and create events
+    for (const date of datesToCreate) {
+      const eventStartTime = new Date(date).toISOString();
+      const eventEndTime = new Date(date.getTime() + duration).toISOString();
+      
+      // Check for conflicts
+      const isAvailable = await checkTimeSlotConflicts(accessToken, eventStartTime, eventEndTime);
+      
+      if (isAvailable) {
+        // Create the event
+        const event = await createWorkoutEvent(
+          accessToken, 
+          workoutName, 
+          eventStartTime, 
+          eventEndTime,
+          reminderMinutes
+        );
+        
+        events.push(event);
+      }
+    }
+    
+    return events;
+  } catch (error) {
+    console.error('Error creating recurring workout events:', error);
+    throw error;
+  }
+}
+
+/**
  * Create a calendar event for a scheduled workout
  * @param accessToken User's Google access token
  * @param workoutName Name of the workout
  * @param startTime Start time of the workout
  * @param endTime End time of the workout
+ * @param reminderMinutes Optional minutes before to send a reminder notification
  * @returns Created event details
  */
 export async function createWorkoutEvent(
   accessToken: string,
   workoutName: string,
   startTime: string,
-  endTime: string
+  endTime: string,
+  reminderMinutes?: number
 ): Promise<calendar_v3.Schema$Event> {
   const calendar = getCalendarClient(accessToken);
   
   try {
-    const event = {
+    // First, check for conflicts
+    const isAvailable = await checkTimeSlotConflicts(accessToken, startTime, endTime);
+    
+    if (!isAvailable) {
+      throw new Error('Time slot has conflicts with existing events');
+    }
+    
+    // Set reminders based on preferences or defaults
+    const reminderOverrides = [];
+    
+    if (reminderMinutes) {
+      reminderOverrides.push({ method: 'popup', minutes: reminderMinutes });
+    } else {
+      // Default reminders
+      reminderOverrides.push({ method: 'popup', minutes: 30 });
+      reminderOverrides.push({ method: 'popup', minutes: 10 });
+    }
+    
+    const event: EventWithReminders = {
       summary: `Workout: ${workoutName}`,
       description: 'Workout scheduled via SyncFit app',
       start: {
@@ -344,10 +579,7 @@ export async function createWorkoutEvent(
       colorId: '7', // Use a specific color for workout events (adjust as needed)
       reminders: {
         useDefault: false,
-        overrides: [
-          { method: 'popup', minutes: 30 },
-          { method: 'popup', minutes: 10 }
-        ]
+        overrides: reminderOverrides
       }
     };
     
