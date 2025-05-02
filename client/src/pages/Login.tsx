@@ -165,12 +165,14 @@ export default function Login() {
                   <div className="mt-3 text-xs border-t border-red-200 pt-2">
                     <p className="font-semibold">How to fix:</p>
                     <ol className="list-decimal text-left ml-4 mt-1 space-y-1">
-                      <li>Go to Firebase Console</li>
-                      <li>Open your project</li>
-                      <li>Go to Authentication → Settings</li>
-                      <li>Under 'Authorized domains', add: <code className="bg-red-100 px-1">{window.location.hostname}</code></li>
-                      <li>Save and try again</li>
+                      <li>Deploy your app using the Replit "Deploy" button</li>
+                      <li>Go to Firebase Console → Authentication → Settings</li>
+                      <li>Under 'Authorized domains', add your deployed domain: <code className="bg-red-100 px-1">{'<your-app>.replit.app'}</code></li>
+                      <li>Also go to Authentication → Sign-in method → Google</li>
+                      <li>Add <code className="bg-red-100 px-1">{'https://<your-app>.replit.app/__/auth/handler'}</code> to Authorized redirect URIs</li>
+                      <li>Save and try again with the deployed URL</li>
                     </ol>
+                    <p className="mt-2 text-red-700 font-medium">Current hostname: <code className="bg-red-100 px-1">{window.location.hostname}</code></p>
                   </div>
                 )}
               </Alert>

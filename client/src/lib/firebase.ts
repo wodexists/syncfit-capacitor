@@ -168,6 +168,9 @@ export async function signInWithGoogle(): Promise<{success: boolean, error?: str
     console.log("Starting Google sign-in with custom flow...");
     console.log(`Current auth domain: ${auth.app.options.authDomain}`);
     console.log(`Current window location: ${window.location.href}`);
+    console.log(`Domain to add to Firebase authorized domains: ${window.location.hostname}`);
+    console.log("IMPORTANT: After deployment, add your .replit.app domain to Firebase Console");
+    console.log("Firebase Console → Authentication → Settings → Authorized domains");
     
     // This is an important workaround - we need to select a different approach for Google auth
     // that can work properly in Replit's preview environment without redirect URI config
