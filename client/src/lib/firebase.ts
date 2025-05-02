@@ -47,6 +47,15 @@ export async function signInWithGoogle(): Promise<{success: boolean, error?: str
     return { success: true };
   } catch (error) {
     console.error("Google sign in error:", error);
+    
+    // Check for unauthorized domain error
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'auth/unauthorized-domain') {
+      return { 
+        success: false, 
+        error: "Firebase authentication error: This domain is not authorized. Please add this Replit domain to your Firebase project's authorized domains list in the Firebase console under Authentication → Settings → Authorized domains."
+      };
+    }
+    
     return { 
       success: false, 
       error: error instanceof Error ? error.message : "Failed to sign in with Google"

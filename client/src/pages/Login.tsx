@@ -4,25 +4,34 @@ import { signInWithGoogle } from "@/lib/firebase";
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 export default function Login() {
   const [_, setLocation] = useLocation();
   const [isLoading, setIsLoading] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
   const { toast } = useToast();
   
   const handleGoogleLogin = async () => {
     try {
       setIsLoading(true);
+      setAuthError(null);
       const result = await signInWithGoogle();
       
       if (result.success) {
         setLocation("/dashboard");
       } else {
-        toast({
-          title: "Login failed",
-          description: result.error || "Failed to authenticate with Google",
-          variant: "destructive",
-        });
+        if (result.error && result.error.includes('unauthorized-domain')) {
+          // Set a specific error for unauthorized domain
+          setAuthError(result.error);
+        } else {
+          toast({
+            title: "Login failed",
+            description: result.error || "Failed to authenticate with Google",
+            variant: "destructive",
+          });
+        }
       }
     } catch (error) {
       toast({
@@ -137,6 +146,16 @@ export default function Login() {
             <p className="text-xs text-gray-500 text-center mt-2">
               By continuing, you agree to allow SyncFit to access your Google Calendar for workout scheduling
             </p>
+            
+            {authError && (
+              <Alert variant="destructive" className="mt-4">
+                <AlertCircle className="h-4 w-4 mr-2" />
+                <AlertTitle>Authentication Error</AlertTitle>
+                <AlertDescription className="text-xs text-left mt-2 ml-6">
+                  {authError}
+                </AlertDescription>
+              </Alert>
+            )}
           </CardFooter>
         </Card>
         
