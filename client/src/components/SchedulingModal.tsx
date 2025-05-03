@@ -98,8 +98,9 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
       };
     },
     onSuccess: (data) => {
-      const startDate = new Date(data.scheduledWorkout.startTime);
-      const endDate = new Date(data.scheduledWorkout.endTime);
+      // Using the start and end time values
+      const startDate = new Date(data.scheduledWorkout.startTime || data.scheduledWorkout.scheduledDate);
+      const endDate = new Date(data.scheduledWorkout.endTime || '');
       
       toast({
         title: "Workout scheduled!",

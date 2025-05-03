@@ -1,4 +1,5 @@
 // Types for workout-related data
+import { apiRequest } from "@/lib/queryClient";
 
 export interface Workout {
   id: number;
@@ -24,6 +25,8 @@ export interface ScheduledWorkout {
   userId: number;
   workoutId: number;
   scheduledDate: string; // ISO date string
+  startTime: string; // Start time ISO string
+  endTime: string; // End time ISO string
   completed: boolean;
   googleEventId?: string | null;
   recurring?: boolean;
@@ -100,20 +103,14 @@ export async function scheduleWorkout(
   endTime: string,
   googleEventId?: string
 ): Promise<ScheduledWorkout> {
-  const response = await fetch('/api/scheduled-workouts', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      workoutId,
-      scheduledDate: startTime,
-      startTime,
-      endTime,
-      googleEventId,
-      completed: false,
-    }),
-    credentials: 'include',
+  // Using apiRequest for consistency with other API calls
+  const response = await apiRequest('POST', '/api/scheduled-workouts', {
+    workoutId,
+    scheduledDate: startTime,
+    startTime,
+    endTime,
+    googleEventId,
+    completed: false,
   });
 
   if (!response.ok) {
@@ -128,10 +125,7 @@ export async function scheduleWorkout(
  * Delete a scheduled workout
  */
 export async function deleteScheduledWorkout(id: number): Promise<boolean> {
-  const response = await fetch(`/api/scheduled-workouts/${id}`, {
-    method: 'DELETE',
-    credentials: 'include',
-  });
+  const response = await apiRequest('DELETE', `/api/scheduled-workouts/${id}`);
 
   if (!response.ok) {
     const errorText = await response.text();
