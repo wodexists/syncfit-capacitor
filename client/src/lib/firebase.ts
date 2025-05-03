@@ -235,6 +235,8 @@ export async function signInWithGoogle(): Promise<{success: boolean, error?: str
       });
       
       try {
+        console.log("Before API request - document.cookie:", document.cookie);
+        
         const response = await apiRequest('POST', '/api/auth/google', {
           googleId: user.uid,
           email: user.email,
@@ -244,12 +246,30 @@ export async function signInWithGoogle(): Promise<{success: boolean, error?: str
           profilePicture: user.photoURL || undefined
         });
         
+        // Log cookies after login response
+        console.log("After API request - document.cookie:", document.cookie);
+        console.log("Response headers:", {
+          'set-cookie': response.headers.get('set-cookie'),
+          contentType: response.headers.get('content-type')
+        });
+        
         // Parse and log the response
         const responseData = await response.json();
         console.log("Authentication API response:", responseData);
         
         // Verify session is working by immediately checking user status
-        const userCheckResponse = await fetch('/api/auth/user', { credentials: 'include' });
+        console.log("Making user session check request...");
+        const userCheckResponse = await fetch('/api/auth/user', { 
+          credentials: 'include',
+          headers: {
+            'Cache-Control': 'no-cache'
+          }
+        });
+        console.log("User check response status:", userCheckResponse.status);
+        console.log("User check response headers:", {
+          contentType: userCheckResponse.headers.get('content-type')
+        });
+        
         const userCheckData = await userCheckResponse.json();
         console.log("User session check after login:", userCheckData);
         

@@ -22,14 +22,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use(session({
     cookie: { 
       maxAge: 86400000, // One day
-      secure: process.env.NODE_ENV === 'production',
+      secure: false, // Important: must be false in dev environment for cookies to work over HTTP
       sameSite: 'lax', // Helps with cross-site issues
       httpOnly: true, // Enhanced security
+      path: '/', // Ensures cookie is sent for all routes
     },
     name: 'syncfit.sid', // Custom name to avoid default "connect.sid"
     secret: process.env.SESSION_SECRET || 'syncfit-secret-key',
-    resave: false,
-    saveUninitialized: false,
+    resave: true, // Changed to true to ensure session is saved
+    saveUninitialized: true, // Changed to true to save new sessions
     store: new MemoryStoreClass({
       checkPeriod: 86400000 // Prune expired entries every 24h
     })

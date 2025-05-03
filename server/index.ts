@@ -6,6 +6,30 @@ import { setupVite, serveStatic, log } from "./vite";
 process.env.USE_FIRESTORE = process.env.USE_FIRESTORE || 'true';
 
 const app = express();
+
+// Enable CORS for development with credentials support
+app.use((req, res, next) => {
+  // Allow credentials (cookies) to be sent cross-origin
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
+  // In development, allow any origin
+  const origin = req.headers.origin;
+  if (origin) {
+    res.header('Access-Control-Allow-Origin', origin);
+  }
+  
+  // Allow all needed headers and methods
+  res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  
+  next();
+});
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
