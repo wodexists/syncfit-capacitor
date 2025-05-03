@@ -725,6 +725,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         reminderMinutes = userPrefs.reminderMinutes;
       }
       
+      // Double-check first slot to verify calendar hasn't changed
+      const isFirstSlotAvailable = await GoogleCalendarService.checkTimeSlotConflicts(
+        user.googleAccessToken,
+        startTime,
+        endTime
+      );
+      
+      if (!isFirstSlotAvailable) {
+        return res.status(409).json({ 
+          success: false, 
+          message: 'Your calendar has been updated since we last checked. Please refresh to see the latest available slots.' 
+        });
+      }
+      
       // Create recurring events
       const createdEvents = await GoogleCalendarService.createRecurringWorkouts(
         user.googleAccessToken,

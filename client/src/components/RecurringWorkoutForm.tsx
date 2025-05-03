@@ -63,7 +63,13 @@ export default function RecurringWorkoutForm({
         onSuccess(result.events);
       } else {
         // Show a user-friendly error message
-        if (result.message.includes("conflicts") || result.message.includes("overlap")) {
+        if (result.message && result.message.includes("calendar has been updated")) {
+          // If calendar was updated, we'll return an empty array to show no events were created
+          // This will trigger a toast message in the parent component
+          console.log("Calendar has been updated since loading form, skipping recurring scheduling");
+          onSuccess([]);
+        } else if (result.message && (result.message.includes("conflicts") || result.message.includes("overlap"))) {
+          // This should never happen with our new approach, but keeping it as a fallback
           throw new Error("Some of your selected times overlap with existing calendar events. Please try different dates or times.");
         } else {
           throw new Error(result.message || "We couldn't schedule your recurring workouts. Please try again later.");

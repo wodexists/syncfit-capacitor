@@ -96,9 +96,30 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
           console.error("Calendar API error:", calendarData.error);
           // Show a user-friendly message
           throw new Error("We're having trouble connecting to your calendar right now. Please try again in a few minutes.");
+        } else if (calendarData.message && calendarData.message.includes("calendar has been updated")) {
+          // Calendar has changed since slots were fetched - refresh the slots automatically
+          console.log("Calendar changed, refreshing time slots...");
+          const freshSlots = await findAvailableTimeSlots(new Date(), activeWorkout.duration);
+          setAvailableSlots(freshSlots);
+          
+          // Select first time slot by default
+          if (freshSlots.length > 0) {
+            setSelectedTimeSlot(freshSlots[0].start);
+            // Show a helpful message
+            toast({
+              title: "Calendar updated",
+              description: "Your calendar has changed. We've refreshed the available time slots.",
+              variant: "default",
+            });
+          } else {
+            // No slots available after refresh
+            throw new Error("No available time slots found. Your calendar appears to be full.");
+          }
+          // Return empty to prevent further execution but don't throw error
+          return { scheduledWorkout: null, calendarEvent: null };
         } else {
-          // In case something changed since we fetched the slots
-          throw new Error("Your calendar has changed since loading this page. Please refresh to see updated availability.");
+          // Other error
+          throw new Error(calendarData.message || "Unable to schedule workout. Please try again.");
         }
       }
       
@@ -116,19 +137,27 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
       };
     },
     onSuccess: (data) => {
-      // Using the start and end time values
-      const startDate = new Date(data.scheduledWorkout.startTime || data.scheduledWorkout.scheduledDate);
-      const endDate = new Date(data.scheduledWorkout.endTime || '');
+      // Skip success handling if we returned null from a slot refresh
+      if (!data || data.scheduledWorkout === null) {
+        return;
+      }
       
-      toast({
-        title: "Workout scheduled!",
-        description: `${workout?.name} scheduled for ${formatDateTimeRange(startDate, endDate)}`,
-        variant: "default",
-      });
-      
-      // Invalidate queries that depend on scheduled workouts
-      queryClient.invalidateQueries({ queryKey: ['/api/scheduled-workouts'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/scheduled-workouts/upcoming'] });
+      // Check if we have a valid scheduled workout
+      if (data.scheduledWorkout) {
+        // Using the start and end time values
+        const startDate = new Date(data.scheduledWorkout.startTime || data.scheduledWorkout.scheduledDate);
+        const endDate = new Date(data.scheduledWorkout.endTime || '');
+        
+        toast({
+          title: "Workout scheduled!",
+          description: `${workout?.name} scheduled for ${formatDateTimeRange(startDate, endDate)}`,
+          variant: "default",
+        });
+        
+        // Invalidate queries that depend on scheduled workouts
+        queryClient.invalidateQueries({ queryKey: ['/api/scheduled-workouts'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/scheduled-workouts/upcoming'] });
+      }
     },
     onError: (error) => {
       toast({
