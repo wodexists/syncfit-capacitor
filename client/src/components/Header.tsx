@@ -1,9 +1,18 @@
 import { Button } from "@/components/ui/button";
-import { PlusIcon } from "lucide-react";
+import { Link } from "wouter";
+import { CalendarPlus, LogOut, Plus, UserCircle, Home, ChevronDown } from "lucide-react";
 import { signOut } from "@/lib/firebase";
 import { useState } from "react";
-import SchedulingModal from "./SchedulingModal";
 import { useToast } from "@/hooks/use-toast";
+import AddWorkoutButton from "./AddWorkoutButton";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface User {
   id: number;
@@ -17,7 +26,6 @@ interface HeaderProps {
 }
 
 export default function Header({ user }: HeaderProps) {
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const { toast } = useToast();
 
   const handleLogout = async () => {
@@ -39,41 +47,69 @@ export default function Header({ user }: HeaderProps) {
   return (
     <header className="bg-primary text-white shadow-md">
       <div className="container mx-auto px-4 py-3 flex justify-between items-center">
-        <div className="flex items-center">
-          <span className="material-icons mr-2">fitness_center</span>
-          <h1 className="text-2xl font-bold">SyncFit</h1>
+        <Link href="/">
+          <div className="flex items-center cursor-pointer">
+            <span className="material-icons mr-2">fitness_center</span>
+            <h1 className="text-2xl font-bold">SyncFit</h1>
+          </div>
+        </Link>
+        
+        <div className="hidden md:flex items-center space-x-4">
+          <Link href="/">
+            <Button variant="ghost" className="text-white hover:bg-primary-foreground/10">
+              <Home className="mr-2 h-4 w-4" />
+              Home
+            </Button>
+          </Link>
+          <Link href="/explore">
+            <Button variant="ghost" className="text-white hover:bg-primary-foreground/10">
+              <CalendarPlus className="mr-2 h-4 w-4" />
+              Explore
+            </Button>
+          </Link>
+          <AddWorkoutButton text="Add Workout" />
         </div>
+        
         <div className="flex items-center space-x-4">
-          <Button 
-            onClick={() => setIsModalOpen(true)}
-            className="text-white bg-secondary hover:bg-secondary/90 px-4 py-2 rounded-md flex items-center"
-          >
-            <PlusIcon className="mr-1 h-4 w-4" />
-            <span>Workout</span>
-          </Button>
-          
-          {user?.profilePicture ? (
-            <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center overflow-hidden border-2 border-white">
-              <img 
-                src={user.profilePicture} 
-                alt={`${user.username}'s profile`} 
-                className="w-full h-full object-cover"
-              />
-            </div>
+          {user ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+                  {user.profilePicture ? (
+                    <img 
+                      src={user.profilePicture} 
+                      alt={`${user.username}'s profile`} 
+                      className="h-10 w-10 rounded-full object-cover border-2 border-white"
+                    />
+                  ) : (
+                    <div className="h-10 w-10 rounded-full bg-white/20 flex items-center justify-center border-2 border-white">
+                      <UserCircle className="h-6 w-6 text-white" />
+                    </div>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem>
+                  <UserCircle className="mr-2 h-4 w-4" />
+                  <span>Profile</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleLogout}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Log out</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           ) : (
-            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center border-2 border-white">
-              <span className="material-icons text-white">person</span>
-            </div>
+            <Link href="/login">
+              <Button className="bg-white text-primary hover:bg-white/90">
+                Login
+              </Button>
+            </Link>
           )}
         </div>
       </div>
-
-      {isModalOpen && (
-        <SchedulingModal 
-          isOpen={isModalOpen} 
-          onClose={() => setIsModalOpen(false)} 
-        />
-      )}
     </header>
   );
 }

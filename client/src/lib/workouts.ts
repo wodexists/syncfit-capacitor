@@ -1,15 +1,15 @@
-import { apiRequest } from "@/lib/queryClient";
+// Types for workout-related data
 
 export interface Workout {
   id: number;
   name: string;
   description: string;
-  duration: number;
+  duration: number; // in minutes
   equipment: string;
   difficulty: string;
   imageUrl: string;
   categoryId: number;
-  rating: number;
+  rating: number; // Rating out of 50 (e.g., 48 = 4.8 stars)
   ratingCount: number;
 }
 
@@ -23,139 +23,18 @@ export interface ScheduledWorkout {
   id: number;
   userId: number;
   workoutId: number;
-  startTime: string;
-  endTime: string;
-  googleEventId?: string;
-  isCompleted: boolean;
-  workout?: Workout;
+  scheduledDate: string; // ISO date string
+  completed: boolean;
+  googleEventId?: string | null;
+  recurring?: boolean;
+  recurringPattern?: string; // e.g., "weekly", "daily", etc.
+  workout?: Workout; // Optional related workout data
 }
 
-/**
- * Get all workouts
- */
-export async function getWorkouts(): Promise<Workout[]> {
-  try {
-    const response = await apiRequest('GET', '/api/workouts');
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error('Error getting workouts:', error);
-    return [];
-  }
-}
+// Utility functions
 
 /**
- * Get workouts by category
- */
-export async function getWorkoutsByCategory(categoryId: number): Promise<Workout[]> {
-  try {
-    const response = await apiRequest('GET', `/api/workouts/category/${categoryId}`);
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error('Error getting workouts by category:', error);
-    return [];
-  }
-}
-
-/**
- * Get recommended workouts for the current user
- */
-export async function getRecommendedWorkouts(): Promise<Workout[]> {
-  try {
-    const response = await apiRequest('GET', '/api/workouts/recommended');
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error('Error getting recommended workouts:', error);
-    return [];
-  }
-}
-
-/**
- * Get all workout categories
- */
-export async function getWorkoutCategories(): Promise<WorkoutCategory[]> {
-  try {
-    const response = await apiRequest('GET', '/api/workout-categories');
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error('Error getting workout categories:', error);
-    return [];
-  }
-}
-
-/**
- * Get upcoming scheduled workouts
- */
-export async function getUpcomingWorkouts(): Promise<ScheduledWorkout[]> {
-  try {
-    const response = await apiRequest('GET', '/api/scheduled-workouts/upcoming');
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error('Error getting upcoming workouts:', error);
-    return [];
-  }
-}
-
-/**
- * Schedule a workout
- */
-export async function scheduleWorkout(
-  workoutId: number,
-  startTime: string,
-  endTime: string,
-  googleEventId?: string
-): Promise<ScheduledWorkout> {
-  try {
-    const response = await apiRequest('POST', '/api/scheduled-workouts', {
-      workoutId,
-      startTime,
-      endTime,
-      googleEventId
-    });
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error('Error scheduling workout:', error);
-    throw error;
-  }
-}
-
-/**
- * Update a scheduled workout
- */
-export async function updateScheduledWorkout(
-  id: number,
-  updates: Partial<ScheduledWorkout>
-): Promise<ScheduledWorkout> {
-  try {
-    const response = await apiRequest('PUT', `/api/scheduled-workouts/${id}`, updates);
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error('Error updating scheduled workout:', error);
-    throw error;
-  }
-}
-
-/**
- * Delete a scheduled workout
- */
-export async function deleteScheduledWorkout(id: number): Promise<boolean> {
-  try {
-    await apiRequest('DELETE', `/api/scheduled-workouts/${id}`);
-    return true;
-  } catch (error) {
-    console.error('Error deleting scheduled workout:', error);
-    return false;
-  }
-}
-
-/**
- * Format workout duration from minutes to a readable string
+ * Format the workout duration in a human-readable format
  */
 export function formatWorkoutDuration(minutes: number): string {
   if (minutes < 60) {
@@ -173,8 +52,91 @@ export function formatWorkoutDuration(minutes: number): string {
 }
 
 /**
- * Format workout rating (from 0-50 to 0-5 with decimals)
+ * Format the rating to show as X.Y out of 5 stars
+ * The rating is stored as a number out of 50 for precision
  */
 export function formatRating(rating: number): string {
   return (rating / 10).toFixed(1);
+}
+
+/**
+ * Get the difficulty level badge color
+ */
+export function getDifficultyColor(difficulty: string): string {
+  switch (difficulty.toLowerCase()) {
+    case 'beginner':
+      return 'bg-green-100 text-green-800';
+    case 'intermediate':
+      return 'bg-blue-100 text-blue-800';
+    case 'advanced':
+      return 'bg-purple-100 text-purple-800';
+    default:
+      return 'bg-gray-100 text-gray-800';
+  }
+}
+
+/**
+ * Get a message based on a workout's rating
+ */
+export function getRatingMessage(rating: number): string {
+  if (rating >= 45) {
+    return 'Highly rated';
+  } else if (rating >= 40) {
+    return 'Well rated';
+  } else if (rating >= 30) {
+    return 'Average rating';
+  } else {
+    return 'Needs improvement';
+  }
+}
+
+/**
+ * Schedule a workout
+ * This creates a scheduled workout in the database
+ */
+export async function scheduleWorkout(
+  workoutId: number, 
+  startTime: string, 
+  endTime: string,
+  googleEventId?: string
+): Promise<ScheduledWorkout> {
+  const response = await fetch('/api/scheduled-workouts', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      workoutId,
+      scheduledDate: startTime,
+      startTime,
+      endTime,
+      googleEventId,
+      completed: false,
+    }),
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText || 'Failed to schedule workout');
+  }
+
+  return response.json();
+}
+
+/**
+ * Delete a scheduled workout
+ */
+export async function deleteScheduledWorkout(id: number): Promise<boolean> {
+  const response = await fetch(`/api/scheduled-workouts/${id}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText || 'Failed to delete scheduled workout');
+  }
+
+  return true;
 }

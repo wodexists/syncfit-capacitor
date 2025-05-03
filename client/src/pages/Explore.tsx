@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import * as React from "react";
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Workout, WorkoutCategory } from "@/lib/workouts";
+import AddWorkoutButton from "@/components/AddWorkoutButton";
 
 interface User {
   id: number;
@@ -85,20 +87,8 @@ export default function Explore({ user }: ExploreProps) {
   } = useQuery<Workout[]>({
     queryKey: ['/api/workouts'],
     retry: 1,
-    onSuccess: (data) => {
-      console.log(`Successfully loaded ${data.length} workouts`);
-    },
-    onError: () => {
-      console.error("Error fetching workouts");
-      setHasError(true);
-      toast({
-        title: "Failed to load workouts",
-        description: "Using sample data for now. Please try again later.",
-        variant: "destructive",
-      });
-    }
   });
-  
+
   // Fetch workout categories
   const { 
     data: categories, 
@@ -107,12 +97,6 @@ export default function Explore({ user }: ExploreProps) {
   } = useQuery<WorkoutCategory[]>({
     queryKey: ['/api/workout-categories'],
     retry: 1,
-    onSuccess: (data) => {
-      console.log(`Successfully loaded ${data.length} categories`);
-    },
-    onError: () => {
-      console.error("Error fetching categories");
-    }
   });
   
   // Fetch recommended workouts - only if user is authenticated
@@ -124,13 +108,28 @@ export default function Explore({ user }: ExploreProps) {
     queryKey: ['/api/workouts/recommended'],
     enabled: !!user, // Only run query if user is logged in
     retry: 1,
-    onSuccess: (data) => {
-      console.log(`Successfully loaded ${data.length} recommended workouts`);
-    },
-    onError: () => {
+  });
+  
+  // Handle errors
+  React.useEffect(() => {
+    if (workoutsError) {
+      console.error("Error fetching workouts");
+      setHasError(true);
+      toast({
+        title: "Failed to load workouts",
+        description: "Using sample data for now. Please try again later.",
+        variant: "destructive",
+      });
+    }
+    
+    if (categoriesError) {
+      console.error("Error fetching categories");
+    }
+    
+    if (recommendedError) {
       console.error("Error fetching recommended workouts");
     }
-  });
+  }, [workoutsError, categoriesError, recommendedError, toast]);
 
   // Use default data if API fails
   const workoutsData = workoutsError ? DEFAULT_WORKOUTS : workouts || [];
@@ -157,24 +156,31 @@ export default function Explore({ user }: ExploreProps) {
   
   return (
     <div className="container mx-auto px-4 py-6">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-semibold">Explore Workouts</h2>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+        <div>
+          <h2 className="text-2xl font-semibold mb-1">Explore Workouts</h2>
+          <p className="text-muted-foreground text-sm">Find your perfect workout routine</p>
+        </div>
         
-        <div className="flex space-x-2">
-          <div className="relative">
+        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+          <div className="relative flex-grow">
             <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
             <Input
               type="text"
               placeholder="Search workouts..."
-              className="pl-8 pr-4 py-1"
+              className="pl-8 pr-4 py-2 w-full"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
           
-          <Button variant="outline" size="icon">
-            <FilterIcon className="h-4 w-4" />
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="icon" className="h-10 w-10">
+              <FilterIcon className="h-4 w-4" />
+            </Button>
+            
+            <AddWorkoutButton />
+          </div>
         </div>
       </div>
       

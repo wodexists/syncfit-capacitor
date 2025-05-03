@@ -1,42 +1,26 @@
-import { useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Separator } from "@/components/ui/separator";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Loader2, Calendar as CalendarIcon, Check } from "lucide-react";
-import { format } from "date-fns";
-import { cn } from "@/lib/utils";
-import { apiRequest } from '@/lib/queryClient';
-import { useToast } from '@/hooks/use-toast';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { cn, formatCalendarDate, formatDate } from "@/lib/utils";
+import { formatDateTimeRange } from "@/lib/calendar";
+import { apiRequest } from "@/lib/queryClient";
+import { Loader2, CalendarIcon, XCircle } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface RecurringWorkoutFormProps {
   workoutName: string;
   startTime: string;
   endTime: string;
-  onSuccess: (events: any) => void;
+  onSuccess: (events: any[]) => void;
   onCancel: () => void;
 }
 
-interface RecurringPattern {
-  frequency: 'daily' | 'weekly';
-  daysOfWeek?: number[];
-  interval?: number;
-  count?: number;
-  endDate?: string;
-}
+type RecurrencePattern = "weekly" | "biweekly" | "monthly";
 
 export default function RecurringWorkoutForm({
   workoutName,
@@ -45,296 +29,193 @@ export default function RecurringWorkoutForm({
   onSuccess,
   onCancel
 }: RecurringWorkoutFormProps) {
-  const [pattern, setPattern] = useState<RecurringPattern>({
-    frequency: 'weekly',
-    daysOfWeek: [new Date(startTime).getDay()],
-    count: 4
-  });
-  const [endType, setEndType] = useState<'count' | 'date'>('count');
+  const [pattern, setPattern] = useState<RecurrencePattern>("weekly");
+  const [occurrences, setOccurrences] = useState<number>(4);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
-  
+  const [endType, setEndType] = useState<"occurrences" | "date">("occurrences");
+  const [excludedDates, setExcludedDates] = useState<Date[]>([]);
+  const [datePopoverOpen, setDatePopoverOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
-  // Map day numbers to day names
-  const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  // Parse initial date
+  const initialDate = new Date(startTime);
   
-  // Create mutation for recurring workouts
-  const createRecurringMutation = useMutation({
-    mutationFn: async (recurringPattern: RecurringPattern) => {
-      const response = await apiRequest('/api/calendar/create-recurring-events', 'POST', {
+  const handleSubmit = async () => {
+    try {
+      setIsSubmitting(true);
+      
+      const payload = {
         workoutName,
         startTime,
         endTime,
-        pattern: recurringPattern
-      });
+        pattern,
+        endType,
+        occurrences: endType === "occurrences" ? occurrences : undefined,
+        endDate: endDate ? formatCalendarDate(endDate) : undefined,
+        excludedDates: excludedDates.map(d => formatCalendarDate(d))
+      };
       
-      // Parse the JSON response
-      return await response.json();
-    },
-    onSuccess: (data: any) => {
-      toast({
-        title: "Recurring workouts scheduled",
-        description: `Successfully created ${data.count} recurring workouts`,
-        variant: "default",
-      });
+      const response = await apiRequest('POST', '/api/calendar/create-recurring-events', payload);
+      const result = await response.json();
       
-      onSuccess(data.events);
-    },
-    onError: (error) => {
+      if (result.success) {
+        onSuccess(result.events);
+      } else {
+        throw new Error(result.message || "Failed to create recurring events");
+      }
+    } catch (error) {
       toast({
-        title: "Error scheduling workouts",
-        description: "There was a problem creating your recurring workouts",
+        title: "Error creating recurring workouts",
+        description: error instanceof Error ? error.message : "An unknown error occurred",
         variant: "destructive",
       });
-      console.error('Error creating recurring workouts:', error);
-    }
-  });
-
-  const handleFrequencyChange = (value: string) => {
-    if (value === 'daily' || value === 'weekly') {
-      setPattern(prev => ({ ...prev, frequency: value }));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleDayToggle = (day: number, checked: boolean) => {
-    setPattern(prev => {
-      const days = prev.daysOfWeek || [];
-      if (checked) {
-        return { ...prev, daysOfWeek: [...days, day].sort() };
-      } else {
-        return { ...prev, daysOfWeek: days.filter(d => d !== day) };
-      }
-    });
-  };
-
-  const handleCountChange = (value: string) => {
-    const count = parseInt(value);
-    if (!isNaN(count) && count > 0) {
-      setPattern(prev => ({ ...prev, count }));
-    }
-  };
-
-  const handleIntervalChange = (value: string) => {
-    const interval = parseInt(value);
-    if (!isNaN(interval) && interval > 0) {
-      setPattern(prev => ({ ...prev, interval }));
-    }
-  };
-
-  const handleEndDateChange = (date: Date | undefined) => {
-    setEndDate(date);
-    if (date) {
-      setPattern(prev => ({ ...prev, endDate: date.toISOString() }));
-    } else {
-      // Remove endDate if it's reset
-      const { endDate, ...rest } = pattern;
-      setPattern(rest);
-    }
-  };
-
-  const handleEndTypeChange = (value: string) => {
-    if (value === 'count' || value === 'date') {
-      setEndType(value);
-      
-      // Reset the other end type value
-      if (value === 'count') {
-        const { endDate, ...rest } = pattern;
-        setPattern({ ...rest, count: 4 });
-      } else {
-        const { count, ...rest } = pattern;
-        if (endDate) {
-          setPattern({ ...rest, endDate: endDate.toISOString() });
-        } else {
-          setPattern(rest);
-        }
-      }
-    }
-  };
-
-  const handleSubmit = () => {
-    // Prepare the final pattern
-    const finalPattern = { ...pattern };
-    
-    // Make sure to include only the relevant end type
-    if (endType === 'count') {
-      delete finalPattern.endDate;
-    } else {
-      delete finalPattern.count;
-    }
-    
-    createRecurringMutation.mutate(finalPattern);
-  };
+  // Format times for display
+  const displayDateTime = formatDateTimeRange(new Date(startTime), new Date(endTime));
+  
+  // Calculate default end date (1 month from now)
+  const defaultEndDate = new Date();
+  defaultEndDate.setMonth(defaultEndDate.getMonth() + 1);
 
   return (
     <div className="space-y-4">
-      <Tabs defaultValue="weekly" onValueChange={handleFrequencyChange}>
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="weekly">Weekly</TabsTrigger>
-          <TabsTrigger value="daily">Daily</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="weekly" className="pt-4">
-          <Card>
-            <CardContent className="pt-4">
-              <div className="space-y-4">
-                <div>
-                  <Label className="block mb-2">Repeat on</Label>
-                  <div className="flex flex-wrap gap-2">
-                    {dayNames.map((day, index) => (
-                      <div key={day} className="flex items-center space-x-2">
-                        <Checkbox 
-                          id={`day-${index}`}
-                          checked={pattern.daysOfWeek?.includes(index)}
-                          onCheckedChange={(checked) => handleDayToggle(index, checked as boolean)}
-                        />
-                        <Label htmlFor={`day-${index}`}>{day.substring(0, 3)}</Label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                
-                <div>
-                  <Label htmlFor="interval" className="block mb-2">Every</Label>
-                  <div className="flex items-center space-x-2">
-                    <Select 
-                      value={String(pattern.interval || 1)}
-                      onValueChange={handleIntervalChange}
-                    >
-                      <SelectTrigger id="interval" className="w-20">
-                        <SelectValue placeholder="1" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {[1, 2, 3, 4].map(num => (
-                          <SelectItem key={num} value={String(num)}>{num}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <span>week(s)</span>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="daily" className="pt-4">
-          <Card>
-            <CardContent className="pt-4">
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="interval" className="block mb-2">Every</Label>
-                  <div className="flex items-center space-x-2">
-                    <Select 
-                      value={String(pattern.interval || 1)}
-                      onValueChange={handleIntervalChange}
-                    >
-                      <SelectTrigger id="interval" className="w-20">
-                        <SelectValue placeholder="1" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {[1, 2, 3, 4, 5, 6, 7].map(num => (
-                          <SelectItem key={num} value={String(num)}>{num}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <span>day(s)</span>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+      <div className="bg-muted p-3 rounded-md mb-4">
+        <h3 className="text-base font-medium">{workoutName}</h3>
+        <p className="text-sm text-muted-foreground">First occurrence: {displayDateTime}</p>
+      </div>
       
-      <div className="space-y-4">
-        <Label>End</Label>
-        <div className="space-y-2">
+      <div className="space-y-2">
+        <h3 className="text-sm font-medium">Repeat Pattern</h3>
+        <RadioGroup value={pattern} onValueChange={(v) => setPattern(v as RecurrencePattern)} className="flex flex-wrap gap-2">
+          <div className="flex items-center space-x-1">
+            <RadioGroupItem value="weekly" id="weekly" />
+            <Label htmlFor="weekly">Weekly</Label>
+          </div>
+          <div className="flex items-center space-x-1">
+            <RadioGroupItem value="biweekly" id="biweekly" />
+            <Label htmlFor="biweekly">Every 2 Weeks</Label>
+          </div>
+          <div className="flex items-center space-x-1">
+            <RadioGroupItem value="monthly" id="monthly" />
+            <Label htmlFor="monthly">Monthly</Label>
+          </div>
+        </RadioGroup>
+      </div>
+      
+      <div className="space-y-2">
+        <h3 className="text-sm font-medium">End After</h3>
+        <RadioGroup value={endType} onValueChange={(v) => setEndType(v as "occurrences" | "date")} className="flex flex-col gap-2">
           <div className="flex items-center space-x-2">
-            <input 
-              type="radio" 
-              id="end-count" 
-              name="end-type" 
-              value="count"
-              checked={endType === 'count'}
-              onChange={() => handleEndTypeChange('count')}
-              className="h-4 w-4"
-            />
-            <Label htmlFor="end-count" className="flex items-center space-x-2">
-              <span>After</span>
-              <Input 
-                id="count" 
-                value={pattern.count || ''} 
-                onChange={(e) => handleCountChange(e.target.value)}
-                className="w-16 h-8" 
-                disabled={endType !== 'count'}
+            <RadioGroupItem value="occurrences" id="occurrences" />
+            <Label htmlFor="occurrences" className="flex items-center gap-2">
+              <span>Occurrences:</span>
+              <Input
+                type="number"
+                min="1"
+                max="24"
+                value={occurrences}
+                onChange={(e) => setOccurrences(parseInt(e.target.value) || 4)}
+                disabled={endType !== "occurrences"}
+                className="w-16 h-8"
               />
-              <span>occurrences</span>
             </Label>
           </div>
           
           <div className="flex items-center space-x-2">
-            <input 
-              type="radio" 
-              id="end-date" 
-              name="end-type" 
-              value="date"
-              checked={endType === 'date'}
-              onChange={() => handleEndTypeChange('date')}
-              className="h-4 w-4"
-            />
-            <Label htmlFor="end-date" className="flex items-center space-x-2">
-              <span>On date</span>
-              <Popover>
+            <RadioGroupItem value="date" id="end-date" />
+            <Label htmlFor="end-date" className="flex items-center gap-2">
+              <span>End Date:</span>
+              <Popover open={datePopoverOpen && endType === "date"} onOpenChange={(open) => setDatePopoverOpen(open)}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
+                    size="sm"
+                    disabled={endType !== "date"}
                     className={cn(
-                      "w-32 justify-start text-left font-normal",
+                      "w-[240px] justify-start text-left font-normal",
                       !endDate && "text-muted-foreground"
                     )}
-                    disabled={endType !== 'date'}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {endDate ? format(endDate, "MMM dd, yyyy") : "Select date"}
+                    {endDate ? formatDate(endDate) : "Select date"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0">
                   <Calendar
                     mode="single"
                     selected={endDate}
-                    onSelect={handleEndDateChange}
+                    onSelect={(date) => {
+                      setEndDate(date);
+                      setDatePopoverOpen(false);
+                    }}
+                    disabled={(date) => date < initialDate}
                     initialFocus
-                    disabled={(date) => date < new Date()}
                   />
                 </PopoverContent>
               </Popover>
             </Label>
           </div>
-        </div>
+        </RadioGroup>
       </div>
       
-      <Separator className="my-4" />
+      <div className="space-y-2 border-t pt-4 mt-4">
+        <h3 className="text-sm font-medium mb-2">Skip Specific Dates (Optional)</h3>
+        <div className="flex flex-wrap gap-2 mb-2">
+          {excludedDates.map((date, i) => (
+            <div key={i} className="bg-muted text-sm rounded-full px-3 py-1 flex items-center">
+              {formatDate(date)}
+              <button
+                className="ml-1 text-muted-foreground hover:text-destructive"
+                onClick={() => setExcludedDates(excludedDates.filter((_, index) => index !== i))}
+              >
+                <XCircle className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+          {excludedDates.length === 0 && (
+            <p className="text-sm text-muted-foreground">No exclusions set</p>
+          )}
+        </div>
+        
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm">
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              Add Exclusion Date
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0">
+            <Calendar
+              mode="single"
+              onSelect={(date) => {
+                if (date) {
+                  setExcludedDates([...excludedDates, date]);
+                }
+              }}
+              disabled={(date) => date < initialDate || excludedDates.some(d => d.toDateString() === date.toDateString())}
+              initialFocus
+            />
+          </PopoverContent>
+        </Popover>
+      </div>
       
-      <div className="flex justify-end space-x-2">
+      <div className="flex justify-end space-x-2 pt-4 border-t mt-4">
         <Button variant="outline" onClick={onCancel}>
           Cancel
         </Button>
-        <Button
-          onClick={handleSubmit}
-          disabled={createRecurringMutation.isPending || 
-            (pattern.frequency === 'weekly' && (!pattern.daysOfWeek || pattern.daysOfWeek.length === 0))}
-          className="flex items-center"
-        >
-          {createRecurringMutation.isPending ? (
+        <Button onClick={handleSubmit} disabled={isSubmitting}>
+          {isSubmitting ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Creating...
             </>
           ) : (
-            <>
-              <Check className="mr-2 h-4 w-4" />
-              Create Recurring Workouts
-            </>
+            "Create Recurring Workouts"
           )}
         </Button>
       </div>
