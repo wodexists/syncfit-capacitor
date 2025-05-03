@@ -29,29 +29,40 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
+    console.log(`Making authenticated request to ${queryKey[0]}...`);
     const res = await fetch(queryKey[0] as string, {
       credentials: "include",
+      headers: {
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
+      },
+      cache: 'no-store'
     });
+
+    console.log(`Response status for ${queryKey[0]}: ${res.status}, cookies present: ${!!document.cookie}`);
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
       return null;
     }
 
     await throwIfResNotOk(res);
-    return await res.json();
+    const data = await res.json();
+    console.log(`Response data for ${queryKey[0]}:`, data);
+    return data;
   };
 
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       queryFn: getQueryFn({ on401: "throw" }),
-      refetchInterval: false,
-      refetchOnWindowFocus: false,
-      staleTime: Infinity,
-      retry: false,
+      refetchInterval: 5000, // Check for updates every 5 seconds
+      refetchOnWindowFocus: true, // Refresh when window regains focus
+      staleTime: 2000, // Data becomes stale after 2 seconds
+      retry: 1, // Retry once on failure
+      refetchOnMount: true, // Refresh when a component mounts
     },
     mutations: {
-      retry: false,
+      retry: 1, // Retry once on failure
     },
   },
 });

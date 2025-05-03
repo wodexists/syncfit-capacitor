@@ -28,7 +28,37 @@ export default function Login() {
       const result = await signInWithGoogle();
       
       if (result.success) {
-        setLocation("/dashboard");
+        console.log("Google sign-in successful, checking session status...");
+        
+        // Check if session is properly established
+        try {
+          console.log("Checking auth status immediately after login...");
+          const response = await fetch('/api/auth/user', { 
+            credentials: 'include',
+            headers: { 'Cache-Control': 'no-cache' },
+            cache: 'no-store'
+          });
+          const data = await response.json();
+          
+          console.log("Auth status check result:", data);
+          
+          if (data.authenticated) {
+            console.log("Authentication confirmed, redirecting to dashboard...");
+            // Force a page reload to ensure the authentication state is fresh
+            // This is a workaround for potential stale React Query cache
+            window.location.href = '/dashboard';
+          } else {
+            console.error("Backend session not established despite successful Firebase auth");
+            toast({
+              title: "Login issue",
+              description: "Successfully authenticated with Google, but session wasn't established. Please try again.",
+              variant: "destructive",
+            });
+          }
+        } catch (checkError) {
+          console.error("Error checking authentication status:", checkError);
+          setLocation("/dashboard"); // Fallback to normal redirect
+        }
       } else {
         if (result.error && result.error.includes('unauthorized-domain')) {
           // Set a specific error for unauthorized domain

@@ -35,13 +35,22 @@ function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   // Check authentication status
-  const { data: authData, isLoading } = useQuery<{
+  const { data: authData, isLoading, refetch } = useQuery<{
     authenticated: boolean;
     user?: User;
   }>({
     queryKey: ['/api/auth/user'],
-    retry: false,
+    retry: 1,
+    staleTime: 5000, // Refresh authentication status every 5 seconds
+    refetchInterval: 5000, // Keep checking auth status
+    refetchOnWindowFocus: true,
   });
+  
+  // Force refresh auth state when component mounts
+  useEffect(() => {
+    console.log('App component mounted - checking authentication status');
+    refetch();
+  }, []);
 
   useEffect(() => {
     if (authData && authData.authenticated && authData.user) {
