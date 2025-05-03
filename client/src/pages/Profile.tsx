@@ -123,7 +123,7 @@ export default function Profile({ user }: ProfileProps) {
       if (data.eveningWorkouts) preferredWorkoutTimes.push("evening");
 
       // Send to API
-      await apiRequest('POST', '/api/user-preferences', {
+      await apiRequest('/api/user-preferences', 'POST', {
         preferredWorkoutDuration: parseInt(data.preferredWorkoutDuration),
         preferredCategories: JSON.stringify(data.preferredCategories),
         preferredWorkoutTimes: JSON.stringify(preferredWorkoutTimes),
