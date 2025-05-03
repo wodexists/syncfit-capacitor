@@ -20,7 +20,6 @@ import {
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import RecurringWorkoutForm from "./RecurringWorkoutForm";
-import { GoogleCalendarSetupGuide } from "./GoogleCalendarSetupGuide";
 
 type SchedulingMode = "smart" | "manual";
 type SchedulingTab = "single" | "recurring";
@@ -37,8 +36,8 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<string | null>(null);
   const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
   const [scheduledEvents, setScheduledEvents] = useState<any[]>([]);
-  const [showCalendarSetup, setShowCalendarSetup] = useState<boolean>(false);
-  const [projectId, setProjectId] = useState<string>("");
+  // State for tracking scheduling status
+  const [isScheduling, setIsScheduling] = useState<boolean>(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -90,15 +89,12 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
       const calendarData = await conflictCheck.json();
       
       if (!calendarData.success) {
-        // Check if the error is related to Google Calendar API not being enabled
-        if (calendarData.error && calendarData.error.includes("Google Calendar API has not been used in project")) {
-          // Extract the project ID from the error message
-          const projectIdMatch = calendarData.error.match(/project=(\d+)/);
-          if (projectIdMatch && projectIdMatch[1]) {
-            setProjectId(projectIdMatch[1]);
-            setShowCalendarSetup(true);
-          }
-          throw new Error("Calendar API not enabled. Please enable the Google Calendar API in your Google Cloud Console.");
+        // For all errors, use a user-friendly message that doesn't expose API details
+        if (calendarData.error && calendarData.error.includes("Google Calendar API")) {
+          // Log the technical error for developers
+          console.error("Calendar API error:", calendarData.error);
+          // Show a user-friendly message
+          throw new Error("We're having trouble connecting to your calendar right now. Please try again in a few minutes.");
         } else {
           throw new Error(calendarData.message || 'Calendar conflict detected');
         }
@@ -470,90 +466,81 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
   };
 
   return (
-    <>
-      {/* Google Calendar API Setup Guide */}
-      <GoogleCalendarSetupGuide 
-        isOpen={showCalendarSetup} 
-        onClose={() => setShowCalendarSetup(false)} 
-        projectId={projectId}
-      />
-      
-      <Dialog open={isOpen} onOpenChange={(open) => {
-        if (!open) onClose();
-      }}>
-        <DialogContent className="sm:max-w-[550px]">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-semibold">Schedule Workout</DialogTitle>
-          </DialogHeader>
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      if (!open) onClose();
+    }}>
+      <DialogContent className="sm:max-w-[550px]">
+        <DialogHeader>
+          <DialogTitle className="text-xl font-semibold">Schedule Workout</DialogTitle>
+        </DialogHeader>
+        
+        <div className="py-4">
+          {recurringEnabled && (
+            <Tabs value={scheduleTab} onValueChange={(value) => setScheduleTab(value as SchedulingTab)} className="mb-6">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="single" className="flex items-center">
+                  <Calendar className="h-4 w-4 mr-2" />
+                  Single Workout
+                </TabsTrigger>
+                <TabsTrigger value="recurring" className="flex items-center">
+                  <RotateCw className="h-4 w-4 mr-2" />
+                  Recurring
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          )}
           
-          <div className="py-4">
-            {recurringEnabled && (
-              <Tabs value={scheduleTab} onValueChange={(value) => setScheduleTab(value as SchedulingTab)} className="mb-6">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="single" className="flex items-center">
-                    <Calendar className="h-4 w-4 mr-2" />
-                    Single Workout
-                  </TabsTrigger>
-                  <TabsTrigger value="recurring" className="flex items-center">
-                    <RotateCw className="h-4 w-4 mr-2" />
-                    Recurring
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
-            )}
-            
-            {renderMainContent()}
-          </div>
-          
-          <DialogFooter className="flex justify-end space-x-3">
+          {renderMainContent()}
+        </div>
+        
+        <DialogFooter className="flex justify-end space-x-3">
+          <Button 
+            variant="outline" 
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onClose(e);
+            }}
+            type="button"
+          >
+            Cancel
+          </Button>
+          {(!recurringEnabled || scheduleTab === "single") ? (
             <Button 
-              variant="outline" 
+              onClick={(e) => handleSchedule(e)} 
+              disabled={!selectedTimeSlot || scheduleMutation.isPending}
+              type="button"
+              className="flex items-center"
+            >
+              {scheduleMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Scheduling...
+                </>
+              ) : (
+                <>
+                  <Calendar className="mr-2 h-4 w-4" />
+                  Add to Calendar
+                </>
+              )}
+            </Button>
+          ) : recurringEnabled && scheduleTab === "recurring" && scheduledEvents.length === 0 ? (
+            <Button 
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                onClose(e);
-              }}
+                setScheduleTab("single");
+              }} 
               type="button"
+              variant="secondary"
+              className="flex items-center"
             >
-              Cancel
+              <ChevronRight className="mr-2 h-4 w-4" />
+              Continue
             </Button>
-            {(!recurringEnabled || scheduleTab === "single") ? (
-              <Button 
-                onClick={(e) => handleSchedule(e)} 
-                disabled={!selectedTimeSlot || scheduleMutation.isPending}
-                type="button"
-                className="flex items-center"
-              >
-                {scheduleMutation.isPending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Scheduling...
-                  </>
-                ) : (
-                  <>
-                    <Calendar className="mr-2 h-4 w-4" />
-                    Add to Calendar
-                  </>
-                )}
-              </Button>
-            ) : recurringEnabled && scheduleTab === "recurring" && scheduledEvents.length === 0 ? (
-              <Button 
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setScheduleTab("single");
-                }} 
-                type="button"
-                variant="secondary"
-                className="flex items-center"
-              >
-                <ChevronRight className="mr-2 h-4 w-4" />
-                Continue
-              </Button>
-            ) : null}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
+          ) : null}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
