@@ -56,7 +56,7 @@ export default function RecurringWorkoutForm({
         excludedDates: excludedDates.map(d => formatCalendarDate(d))
       };
       
-      const response = await apiRequest('POST', '/api/calendar/create-recurring-events', payload);
+      const response = await apiRequest('/api/calendar/create-recurring-events', 'POST', payload);
       const result = await response.json();
       
       if (result.success) {
