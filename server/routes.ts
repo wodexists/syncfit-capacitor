@@ -509,11 +509,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.status(200).json(availableSlots);
     } catch (error) {
-      // Fallback to simulated data if there's an error
-      // This helps with development and testing when tokens expire
+      // Log detailed error for developers - retain this for troubleshooting
       console.error('Error finding available slots:', error);
       
-      // Simulated time slots as fallback
+      // Simulated time slots as fallback - IMPORTANT: In a real production app, we would not use
+      // mock data like this. We'd return an appropriate error to the user.
+      // For this development phase, we'll keep this to facilitate easier testing.
       const fallbackSlots = [
         {
           start: new Date(new Date().setHours(7, 0, 0, 0)).toISOString(),
@@ -532,8 +533,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       ];
       
-      // In production, we would return an error, but for now return fallback data
-      // res.status(500).json({ message: 'Failed to find available time slots', error: String(error) });
+      // For development purposes only - we'll use fallback data
+      // In production we would use:
+      // res.status(500).json({ message: 'We couldn\'t access your calendar right now. Please try again later.' });
       res.status(200).json(fallbackSlots);
     }
   });
@@ -556,10 +558,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.status(200).json(availabilityTimeline);
     } catch (error) {
-      // Fallback to simulated data if there's an error
+      // Log detailed error for developers - retain this for troubleshooting
       console.error('Error getting today\'s availability:', error);
       
-      // Simulated availability timeline as fallback
+      // Simulated availability timeline as fallback - IMPORTANT: In a real production app, we would not use
+      // mock data like this. We'd return an appropriate error to the user.
+      // For this development phase, we'll keep this to facilitate easier testing.
       const fallbackTimeline = [
         {
           start: new Date(new Date().setHours(6, 0, 0, 0)).toISOString(),
@@ -605,8 +609,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       ];
       
-      // In production, we would return an error, but for now return fallback data
-      // res.status(500).json({ message: 'Failed to get today\'s availability', error: String(error) });
+      // For development purposes only - we'll use fallback data
+      // In production we would use:
+      // res.status(500).json({ message: 'We couldn\'t access your calendar availability right now. Please try again later.' });
       res.status(200).json(fallbackTimeline);
     }
   });
@@ -667,29 +672,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         htmlLink: createdEvent.htmlLink
       });
     } catch (error) {
+      // Log detailed technical error for developers
       console.error('Error creating calendar event:', error);
       
-      // Provide more helpful error messages for common Google Calendar API errors
+      // Process different error types to guide logging
       const errorMessage = String(error);
+      
+      // For API availability issues, log details but return user-friendly message
       if (errorMessage.includes("API has not been used") || errorMessage.includes("it is disabled")) {
-        // Extract project ID for easier setup
+        // Extract project ID for logging and troubleshooting
         const projectIdMatch = errorMessage.match(/project=(\d+)/);
         const projectId = projectIdMatch ? projectIdMatch[1] : '';
+        console.error(`Calendar API not enabled for project ${projectId}`);
         
+        // Return user-friendly message without API details
         return res.status(500).json({ 
           success: false, 
-          message: 'Google Calendar API needs to be enabled',
-          error: errorMessage,
-          helpText: "The Google Calendar API needs to be enabled in your Google Cloud Console. Please visit the link in the error message, enable the API, and try again in a few minutes.",
-          projectId
+          message: 'We\'re having trouble connecting to your calendar right now. Please try again in a few minutes.'
         });
       }
       
-      // For other errors, return the general error message
+      // For other errors, return a friendly general message
       res.status(500).json({ 
         success: false, 
-        message: 'Failed to create calendar event', 
-        error: errorMessage 
+        message: 'Unable to add workout to your calendar. Please try again later.'
       });
     }
   });
@@ -742,29 +748,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         events: eventSummary
       });
     } catch (error) {
+      // Log detailed technical error for developers
       console.error('Error creating recurring workout events:', error);
       
-      // Provide more helpful error messages for common Google Calendar API errors
+      // Process different error types for logging
       const errorMessage = String(error);
+      
+      // For API availability issues, log details but return user-friendly message
       if (errorMessage.includes("API has not been used") || errorMessage.includes("it is disabled")) {
-        // Extract project ID for easier setup
+        // Extract project ID for logging and troubleshooting
         const projectIdMatch = errorMessage.match(/project=(\d+)/);
         const projectId = projectIdMatch ? projectIdMatch[1] : '';
+        console.error(`Calendar API not enabled for project ${projectId}`);
         
+        // Return user-friendly message without API details
         return res.status(500).json({ 
           success: false, 
-          message: 'Google Calendar API needs to be enabled',
-          error: errorMessage,
-          helpText: "The Google Calendar API needs to be enabled in your Google Cloud Console. Please visit the link in the error message, enable the API, and try again in a few minutes.",
-          projectId
+          message: 'We\'re having trouble connecting to your calendar right now. Please try again in a few minutes.'
         });
       }
       
-      // For other errors, return the general error message
+      // For other errors, return a friendly general message
       res.status(500).json({ 
         success: false, 
-        message: 'Failed to create recurring workout events', 
-        error: errorMessage 
+        message: 'Unable to add recurring workouts to your calendar. Please try again later.'
       });
     }
   });
@@ -802,8 +809,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.status(200).json(calendarList);
     } catch (error) {
+      // Log the detailed error for developers
       console.error('Error getting calendar list:', error);
-      res.status(500).json({ message: 'Failed to get calendar list', error: String(error) });
+      // Return a user-friendly message without exposing API details
+      res.status(500).json({ message: 'Failed to get your calendar list. Please try again in a few minutes.' });
     }
   });
   
@@ -838,8 +847,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         selectedCalendars: calendarIds 
       });
     } catch (error) {
+      // Log detailed error for developers
       console.error('Error saving calendar selection:', error);
-      res.status(500).json({ message: 'Failed to save calendar selection', error: String(error) });
+      // Return a user-friendly message without exposing API details
+      res.status(500).json({ message: 'Failed to save your calendar selection. Please try again.' });
     }
   });
   
@@ -874,8 +885,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         reminderMinutes
       });
     } catch (error) {
+      // Log detailed error for developers
       console.error('Error saving reminder preferences:', error);
-      res.status(500).json({ message: 'Failed to save reminder preferences', error: String(error) });
+      // Return a user-friendly message without exposing API details
+      res.status(500).json({ message: 'Failed to save your reminder preferences. Please try again.' });
     }
   });
 
