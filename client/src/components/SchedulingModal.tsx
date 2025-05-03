@@ -87,7 +87,12 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
       const calendarData = await conflictCheck.json();
       
       if (!calendarData.success) {
-        throw new Error(calendarData.message || 'Calendar conflict detected');
+        // Check if the error is related to Google Calendar API not being enabled
+        if (calendarData.error && calendarData.error.includes("Google Calendar API has not been used in project")) {
+          throw new Error("Calendar API not enabled. Please enable the Google Calendar API in your Google Cloud Console.");
+        } else {
+          throw new Error(calendarData.message || 'Calendar conflict detected');
+        }
       }
       
       // If no conflicts, schedule in our database
@@ -370,7 +375,7 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
           <button
             className={`w-full flex items-center justify-between ${
               mode === "smart" 
-                ? "bg-primary bg-opacity-10 border border-primary" 
+                ? "bg-primary border border-primary" 
                 : "bg-white border border-gray-300"
             } rounded-md p-3 text-left`}
             onClick={(e) => {
@@ -380,10 +385,10 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
             type="button"
           >
             <div className="flex items-center">
-              <Clock className="text-primary h-5 w-5 mr-3" />
+              <Clock className={`h-5 w-5 mr-3 ${mode === "smart" ? "text-white" : "text-primary"}`} />
               <div>
-                <h3 className={`font-medium ${mode === "smart" ? "text-primary" : ""}`}>Smart Scheduling</h3>
-                <p className="text-xs text-gray-600">Find the best time slots based on your calendar</p>
+                <h3 className={`font-medium ${mode === "smart" ? "text-white" : ""}`}>Smart Scheduling</h3>
+                <p className={`text-xs ${mode === "smart" ? "text-gray-200" : "text-gray-600"}`}>Find the best time slots based on your calendar</p>
               </div>
             </div>
             <CheckIcon className={`h-5 w-5 ${mode === "smart" ? "text-primary" : "text-gray-300"}`} />

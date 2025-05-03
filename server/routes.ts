@@ -664,7 +664,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error('Error creating calendar event:', error);
-      res.status(500).json({ message: 'Failed to create calendar event', error: String(error) });
+      
+      // Provide more helpful error messages for common Google Calendar API errors
+      const errorMessage = String(error);
+      if (errorMessage.includes("API has not been used") || errorMessage.includes("it is disabled")) {
+        return res.status(500).json({ 
+          success: false, 
+          message: 'Google Calendar API needs to be enabled',
+          error: errorMessage,
+          helpText: "The Google Calendar API needs to be enabled in your Google Cloud Console. Please visit the link in the error message, enable the API, and try again in a few minutes."
+        });
+      }
+      
+      // For other errors, return the general error message
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to create calendar event', 
+        error: errorMessage 
+      });
     }
   });
   
@@ -717,7 +734,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error('Error creating recurring workout events:', error);
-      res.status(500).json({ message: 'Failed to create recurring workout events', error: String(error) });
+      
+      // Provide more helpful error messages for common Google Calendar API errors
+      const errorMessage = String(error);
+      if (errorMessage.includes("API has not been used") || errorMessage.includes("it is disabled")) {
+        return res.status(500).json({ 
+          success: false, 
+          message: 'Google Calendar API needs to be enabled',
+          error: errorMessage,
+          helpText: "The Google Calendar API needs to be enabled in your Google Cloud Console. Please visit the link in the error message, enable the API, and try again in a few minutes."
+        });
+      }
+      
+      // For other errors, return the general error message
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to create recurring workout events', 
+        error: errorMessage 
+      });
     }
   });
   
