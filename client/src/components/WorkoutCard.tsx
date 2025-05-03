@@ -46,7 +46,12 @@ export default function WorkoutCard({ workout, isRecommended = false }: WorkoutC
             variant="ghost"
             size="sm" 
             className="text-primary text-sm flex items-center"
-            onClick={() => setIsModalOpen(true)}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setIsModalOpen(true);
+            }}
+            type="button"
           >
             <PlusCircle className="h-4 w-4 mr-1" />
             Schedule

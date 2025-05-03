@@ -28,18 +28,24 @@ export default function AddWorkoutButton({
       <Button 
         variant={variant} 
         size={size}
-        onClick={() => setIsModalOpen(true)}
+        onClick={(e) => {
+          e.preventDefault();
+          setIsModalOpen(true);
+        }}
         className={className}
+        type="button"
       >
         {showIcon && <Plus className="h-4 w-4 mr-2" />}
         {label}
       </Button>
 
-      <SchedulingModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        selectedWorkout={selectedWorkout}
-      />
+      {isModalOpen && (
+        <SchedulingModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          selectedWorkout={selectedWorkout}
+        />
+      )}
     </>
   );
 }

@@ -199,10 +199,38 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
     queryClient.invalidateQueries({ queryKey: ['/api/scheduled-workouts/upcoming'] });
   };
 
-  // Render workout selection if no workout is selected yet
-  if (!workout && workouts) {
+  // We'll use a state to manage the workout selection view
+  const [showWorkoutSelection, setShowWorkoutSelection] = useState<boolean>(!selectedWorkout && !workout);
+  
+  // Handle workout selection and switch to scheduling view
+  const handleWorkoutSelect = (workoutId: number) => {
+    setSelectedWorkoutId(workoutId);
+    // Don't immediately switch views to prevent rendering issues
+    setTimeout(() => {
+      setShowWorkoutSelection(false);
+    }, 50);
+  };
+  
+  // Handle the continue button in workout selection
+  const handleContinueFromSelection = (event: React.MouseEvent) => {
+    // Prevent default to stop link navigation
+    event.preventDefault();
+    event.stopPropagation();
+    
+    if (selectedWorkoutId && workouts) {
+      const selected = workouts.find(w => w.id === selectedWorkoutId);
+      if (selected) {
+        setShowWorkoutSelection(false);
+      }
+    }
+  };
+  
+  // Render workout selection if needed
+  if (showWorkoutSelection && workouts && workouts.length > 0) {
     return (
-      <Dialog open={isOpen} onOpenChange={onClose}>
+      <Dialog open={isOpen} onOpenChange={(open) => {
+        if (!open) onClose();
+      }}>
         <DialogContent className="sm:max-w-[550px]">
           <DialogHeader>
             <DialogTitle className="text-xl font-semibold">Select a Workout</DialogTitle>
@@ -215,7 +243,10 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
                 className={`border rounded-md p-3 cursor-pointer hover:border-primary hover:bg-primary/5 ${
                   selectedWorkoutId === w.id ? 'border-primary bg-primary/10' : ''
                 }`}
-                onClick={() => setSelectedWorkoutId(w.id)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  setSelectedWorkoutId(w.id);
+                }}
               >
                 <div className="flex items-start gap-3">
                   <div className="h-16 w-16 rounded-md overflow-hidden">
@@ -243,18 +274,10 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
           <DialogFooter className="flex justify-end space-x-3">
             <Button variant="outline" onClick={onClose}>Cancel</Button>
             <Button 
-              onClick={() => {
-                // Force the workout to update
-                if (selectedWorkoutId && workouts) {
-                  const selected = workouts.find(w => w.id === selectedWorkoutId);
-                  if (selected) {
-                    // This forces re-rendering with the selected workout
-                    setSelectedWorkoutId(selectedWorkoutId); 
-                  }
-                }
-              }} 
+              onClick={handleContinueFromSelection}
               disabled={!selectedWorkoutId}
               className="flex items-center"
+              type="button"
             >
               <Calendar className="mr-2 h-4 w-4" />
               Continue

@@ -200,7 +200,11 @@ export default function Explore({ user }: ExploreProps) {
           variant={selectedCategory === null ? "default" : "outline"}
           size="sm"
           className="whitespace-nowrap rounded-full"
-          onClick={() => setSelectedCategory(null)}
+          onClick={(e) => {
+            e.preventDefault();
+            setSelectedCategory(null);
+          }}
+          type="button"
         >
           All
         </Button>
@@ -219,7 +223,11 @@ export default function Explore({ user }: ExploreProps) {
               variant={selectedCategory === category.id ? "default" : "outline"}
               size="sm"
               className="whitespace-nowrap rounded-full"
-              onClick={() => setSelectedCategory(category.id)}
+              onClick={(e) => {
+                e.preventDefault();
+                setSelectedCategory(category.id);
+              }}
+              type="button"
             >
               {category.name}
             </Button>
