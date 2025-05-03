@@ -82,8 +82,8 @@ export default function Header({ user }: HeaderProps) {
                       className="h-10 w-10 rounded-full object-cover border-2 border-white"
                     />
                   ) : (
-                    <div className="h-10 w-10 rounded-full bg-white/20 flex items-center justify-center border-2 border-white">
-                      <UserCircle className="h-6 w-6 text-white" />
+                    <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center border-2 border-white">
+                      <UserCircle className="h-6 w-6 text-primary" />
                     </div>
                   )}
                 </Button>

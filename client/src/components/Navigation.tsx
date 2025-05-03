@@ -1,4 +1,5 @@
 import { Link } from "wouter";
+import { LayoutDashboard, CalendarIcon, Compass, BarChart3, User } from "lucide-react";
 
 interface NavigationProps {
   currentPath: string;
@@ -22,35 +23,35 @@ export default function Navigation({ currentPath }: NavigationProps) {
         <div className="flex items-center justify-between overflow-x-auto py-2 no-scrollbar">
           <Link href="/dashboard">
             <a className={getLinkClass("/dashboard")}>
-              <span className="material-icons">dashboard</span>
+              <LayoutDashboard className="h-5 w-5" />
               <span className="text-xs mt-1">Dashboard</span>
             </a>
           </Link>
           
           <Link href="/calendar">
             <a className={getLinkClass("/calendar")}>
-              <span className="material-icons">calendar_today</span>
+              <CalendarIcon className="h-5 w-5" />
               <span className="text-xs mt-1">Calendar</span>
             </a>
           </Link>
           
           <Link href="/explore">
             <a className={getLinkClass("/explore")}>
-              <span className="material-icons">explore</span>
+              <Compass className="h-5 w-5" />
               <span className="text-xs mt-1">Explore</span>
             </a>
           </Link>
           
           <Link href="/stats">
             <a className={getLinkClass("/stats")}>
-              <span className="material-icons">bar_chart</span>
+              <BarChart3 className="h-5 w-5" />
               <span className="text-xs mt-1">Stats</span>
             </a>
           </Link>
           
           <Link href="/profile">
             <a className={getLinkClass("/profile")}>
-              <span className="material-icons">person</span>
+              <User className="h-5 w-5" />
               <span className="text-xs mt-1">Profile</span>
             </a>
           </Link>
