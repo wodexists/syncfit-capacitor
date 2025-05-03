@@ -16,7 +16,8 @@ import {
   Bell, 
   RotateCw,
   ChevronRight,
-  Loader2
+  Loader2,
+  Star
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
@@ -243,8 +244,14 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
             <Button variant="outline" onClick={onClose}>Cancel</Button>
             <Button 
               onClick={() => {
-                // This will trigger the effect since workout will now be found
-                setSelectedWorkoutId(selectedWorkoutId);
+                // Force the workout to update
+                if (selectedWorkoutId && workouts) {
+                  const selected = workouts.find(w => w.id === selectedWorkoutId);
+                  if (selected) {
+                    // This forces re-rendering with the selected workout
+                    setSelectedWorkoutId(selectedWorkoutId); 
+                  }
+                }
               }} 
               disabled={!selectedWorkoutId}
               className="flex items-center"

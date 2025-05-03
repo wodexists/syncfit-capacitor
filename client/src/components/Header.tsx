@@ -74,19 +74,19 @@ export default function Header({ user }: HeaderProps) {
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-10 w-10 rounded-full p-0 overflow-hidden">
+                <button className="h-10 w-10 cursor-pointer overflow-hidden rounded-full border-2 border-white focus:outline-none">
                   {user.profilePicture ? (
                     <img 
                       src={user.profilePicture} 
                       alt={`${user.username}'s profile`} 
-                      className="h-10 w-10 rounded-full object-cover border-2 border-white"
+                      className="h-full w-full object-cover"
                     />
                   ) : (
-                    <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center border-2 border-white">
+                    <div className="h-full w-full bg-white flex items-center justify-center">
                       <UserCircle className="h-6 w-6 text-primary" />
                     </div>
                   )}
-                </Button>
+                </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>My Account</DropdownMenuLabel>
