@@ -28,7 +28,7 @@ type SchedulingTab = "single" | "recurring";
 
 interface SchedulingModalProps {
   isOpen: boolean;
-  onClose: () => void;
+  onClose: (e?: React.MouseEvent) => void;
   selectedWorkout?: Workout;
 }
 
@@ -179,7 +179,7 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
         workoutName: activeWorkout.name
       });
       
-      onClose();
+      onClose(event);
     } catch (error) {
       toast({
         title: "Failed to schedule workout",
@@ -285,7 +285,17 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
           </div>
           
           <DialogFooter className="flex justify-end space-x-3">
-            <Button variant="outline" onClick={onClose}>Cancel</Button>
+            <Button 
+              variant="outline" 
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onClose();
+              }}
+              type="button"
+            >
+              Cancel
+            </Button>
             <Button 
               onClick={handleContinueFromSelection}
               disabled={!selectedWorkoutId}
@@ -311,7 +321,9 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
   const activeWorkout = (currentlySelectedWorkout || workout)!;
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      if (!open) onClose();
+    }}>
       <DialogContent className="sm:max-w-[550px]">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold">Schedule Workout</DialogTitle>
@@ -444,7 +456,16 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
                 <div className="text-sm text-muted-foreground mb-2">
                   Successfully scheduled {scheduledEvents.length} workouts
                 </div>
-                <Button variant="outline" onClick={onClose} className="w-full">
+                <Button 
+                  variant="outline" 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onClose();
+                  }} 
+                  type="button"
+                  className="w-full"
+                >
                   Close
                 </Button>
               </div>
@@ -485,7 +506,12 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
             </Button>
           ) : recurringEnabled && scheduleTab === "recurring" && scheduledEvents.length === 0 ? (
             <Button 
-              onClick={() => setScheduleTab("single")} 
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setScheduleTab("single");
+              }} 
+              type="button"
               variant="secondary"
               className="flex items-center"
             >

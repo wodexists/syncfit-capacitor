@@ -42,7 +42,13 @@ export default function AddWorkoutButton({
       {isModalOpen && (
         <SchedulingModal
           isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
+          onClose={(e?: React.MouseEvent) => {
+            if (e) {
+              e.preventDefault();
+              e.stopPropagation();
+            }
+            setIsModalOpen(false);
+          }}
           selectedWorkout={selectedWorkout}
         />
       )}
