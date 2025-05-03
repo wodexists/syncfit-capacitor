@@ -45,7 +45,23 @@ Make sure all environment variables (Firebase config) are properly set in the de
    - `FIREBASE_CLIENT_EMAIL` - Service account email from Firebase Admin SDK
    - `FIREBASE_PRIVATE_KEY` - Service account private key from Firebase Admin SDK
    
-   > **Important:** The FIREBASE_PRIVATE_KEY should be the full private key including the `-----BEGIN PRIVATE KEY-----` and `-----END PRIVATE KEY-----` lines. Ensure it's properly encoded if added via the environment variables UI.
+   > **Important:** For the FIREBASE_PRIVATE_KEY, follow these steps exactly:
+   >
+   > 1. From your Firebase service account key JSON file, copy the exact value of the "private_key" field
+   >    - It should start with `"-----BEGIN PRIVATE KEY-----\n`
+   >    - It should end with `\n-----END PRIVATE KEY-----\n"`
+   >    - Include the surrounding double quotes when you copy it
+   > 
+   > 2. Paste this exact value (with quotes) into your environment variable
+   >
+   > 3. If your secret includes `\n`, this will automatically be handled by our config
+   >
+   > 4. Alternatively, use this template and replace PASTE_KEY_HERE with your key content:
+   >    ```
+   >    -----BEGIN PRIVATE KEY-----
+   >    PASTE_KEY_HERE
+   >    -----END PRIVATE KEY-----
+   >    ```
 
 ## Testing the Deployed Application
 
