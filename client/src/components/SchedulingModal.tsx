@@ -199,16 +199,27 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
     queryClient.invalidateQueries({ queryKey: ['/api/scheduled-workouts/upcoming'] });
   };
 
-  // We'll use a state to manage the workout selection view
+  // We'll use a state to manage the workout selection view and the currently selected workout
   const [showWorkoutSelection, setShowWorkoutSelection] = useState<boolean>(!selectedWorkout && !workout);
+  const [currentlySelectedWorkout, setCurrentlySelectedWorkout] = useState<Workout | undefined>(selectedWorkout || workout);
+  
+  // Track the actual workout that will be scheduled
+  useEffect(() => {
+    if (selectedWorkoutId && workouts) {
+      const selected = workouts.find(w => w.id === selectedWorkoutId);
+      if (selected) {
+        setCurrentlySelectedWorkout(selected);
+      }
+    }
+  }, [selectedWorkoutId, workouts]);
   
   // Handle workout selection and switch to scheduling view
-  const handleWorkoutSelect = (workoutId: number) => {
+  const handleWorkoutSelect = (workoutId: number, event: React.MouseEvent) => {
+    // Prevent any navigation
+    event.preventDefault();
+    event.stopPropagation();
+    
     setSelectedWorkoutId(workoutId);
-    // Don't immediately switch views to prevent rendering issues
-    setTimeout(() => {
-      setShowWorkoutSelection(false);
-    }, 50);
   };
   
   // Handle the continue button in workout selection
@@ -220,6 +231,7 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
     if (selectedWorkoutId && workouts) {
       const selected = workouts.find(w => w.id === selectedWorkoutId);
       if (selected) {
+        setCurrentlySelectedWorkout(selected);
         setShowWorkoutSelection(false);
       }
     }
@@ -243,10 +255,7 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
                 className={`border rounded-md p-3 cursor-pointer hover:border-primary hover:bg-primary/5 ${
                   selectedWorkoutId === w.id ? 'border-primary bg-primary/10' : ''
                 }`}
-                onClick={(e) => {
-                  e.preventDefault();
-                  setSelectedWorkoutId(w.id);
-                }}
+                onClick={(e) => handleWorkoutSelect(w.id, e)}
               >
                 <div className="flex items-start gap-3">
                   <div className="h-16 w-16 rounded-md overflow-hidden">
@@ -288,9 +297,14 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
     );
   }
   
-  if (!workout) {
+  // If we don't have a workout selected or available, don't render the scheduling view
+  if (!currentlySelectedWorkout && !workout) {
     return null;
   }
+  
+  // Use the currently selected workout or the passed in workout
+  // We've already checked that at least one of these exists
+  const activeWorkout = (currentlySelectedWorkout || workout)!;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -357,14 +371,14 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
             </div>
             
             <div className="bg-muted rounded-md p-3 mb-4">
-              <h3 className="font-medium mb-2">{workout.name}</h3>
+              <h3 className="font-medium mb-2">{activeWorkout.name}</h3>
               <div className="flex items-center text-sm text-muted-foreground mb-1">
                 <Clock className="h-4 w-4 mr-1" />
-                Duration: {formatWorkoutDuration(workout.duration)}
+                Duration: {formatWorkoutDuration(activeWorkout.duration)}
               </div>
               <div className="flex items-center text-sm text-muted-foreground">
                 <Dumbbell className="h-4 w-4 mr-1" />
-                Equipment: {workout.equipment || "None"}
+                Equipment: {activeWorkout.equipment || "None"}
               </div>
             </div>
             
@@ -398,9 +412,9 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
           </TabsContent>
           
           <TabsContent value="recurring" className="mt-0">
-            {selectedTimeSlot && workout && scheduleTab === "recurring" ? (
+            {selectedTimeSlot && activeWorkout && scheduleTab === "recurring" ? (
               <RecurringWorkoutForm
-                workoutName={workout.name}
+                workoutName={activeWorkout.name}
                 startTime={selectedTimeSlot}
                 endTime={availableSlots.find(slot => slot.start === selectedTimeSlot)?.end || ""}
                 onSuccess={handleRecurringSuccess}

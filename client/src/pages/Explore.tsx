@@ -286,10 +286,12 @@ export default function Explore({ user }: ExploreProps) {
               <p>No workouts found matching your criteria.</p>
               <Button 
                 variant="link" 
-                onClick={() => {
+                onClick={(e) => {
+                  e.preventDefault();
                   setSearchQuery('');
                   setSelectedCategory(null);
                 }}
+                type="button"
               >
                 Clear filters
               </Button>
