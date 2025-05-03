@@ -650,7 +650,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!isAvailable) {
         return res.status(409).json({ 
           success: false, 
-          message: 'Time slot has conflicts with existing events' 
+          message: 'This time slot overlaps with another event in your calendar. Please select a different time.' 
         });
       }
       

@@ -62,7 +62,12 @@ export default function RecurringWorkoutForm({
       if (result.success) {
         onSuccess(result.events);
       } else {
-        throw new Error(result.message || "Failed to create recurring events");
+        // Show a user-friendly error message
+        if (result.message.includes("conflicts") || result.message.includes("overlap")) {
+          throw new Error("Some of your selected times overlap with existing calendar events. Please try different dates or times.");
+        } else {
+          throw new Error(result.message || "We couldn't schedule your recurring workouts. Please try again later.");
+        }
       }
     } catch (error) {
       toast({

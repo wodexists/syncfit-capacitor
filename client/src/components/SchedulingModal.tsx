@@ -96,7 +96,7 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
           // Show a user-friendly message
           throw new Error("We're having trouble connecting to your calendar right now. Please try again in a few minutes.");
         } else {
-          throw new Error(calendarData.message || 'Calendar conflict detected');
+          throw new Error(calendarData.message || 'This time slot overlaps with another event in your calendar. Please select a different time.');
         }
       }
       
