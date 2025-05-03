@@ -151,8 +151,12 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
     }
   }, [isOpen, workout]);
 
-  const handleSchedule = async () => {
-    if (!workout || !selectedTimeSlot) {
+  const handleSchedule = async (event: React.MouseEvent) => {
+    // Prevent default to stop any navigation
+    event.preventDefault();
+    event.stopPropagation();
+    
+    if (!activeWorkout || !selectedTimeSlot) {
       toast({
         title: "Error",
         description: "Please select a workout and time slot",
@@ -169,10 +173,10 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
       }
       
       scheduleMutation.mutate({
-        workoutId: workout.id,
+        workoutId: activeWorkout.id,
         startTime: selectedSlot.start,
         endTime: selectedSlot.end,
-        workoutName: workout.name
+        workoutName: activeWorkout.name
       });
       
       onClose();
@@ -190,7 +194,7 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
     
     toast({
       title: "Recurring workouts scheduled!",
-      description: `Successfully scheduled ${events.length} occurrences of ${workout?.name}`,
+      description: `Successfully scheduled ${events.length} occurrences of ${activeWorkout.name}`,
       variant: "default",
     });
     
@@ -339,7 +343,11 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
                     ? "bg-primary bg-opacity-10 border border-primary" 
                     : "bg-white border border-gray-300"
                 } rounded-md p-3 text-left`}
-                onClick={() => setMode("smart")}
+                onClick={(e) => {
+                  e.preventDefault();
+                  setMode("smart");
+                }}
+                type="button"
               >
                 <div className="flex items-center">
                   <Clock className="text-primary h-5 w-5 mr-3" />
@@ -357,7 +365,11 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
                     ? "bg-primary bg-opacity-10 border border-primary" 
                     : "bg-white border border-gray-300"
                 } rounded-md p-3 text-left`}
-                onClick={() => setMode("manual")}
+                onClick={(e) => {
+                  e.preventDefault();
+                  setMode("manual");
+                }}
+                type="button"
               >
                 <div className="flex items-center">
                   <Calendar className={`h-5 w-5 mr-3 ${mode === "manual" ? "text-primary" : "text-gray-600"}`} />
@@ -441,11 +453,22 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
         </div>
         
         <DialogFooter className="flex justify-end space-x-3">
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button 
+            variant="outline" 
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onClose();
+            }}
+            type="button"
+          >
+            Cancel
+          </Button>
           {scheduleTab === "single" ? (
             <Button 
-              onClick={handleSchedule} 
+              onClick={(e) => handleSchedule(e)} 
               disabled={!selectedTimeSlot || scheduleMutation.isPending}
+              type="button"
               className="flex items-center"
             >
               {scheduleMutation.isPending ? (
