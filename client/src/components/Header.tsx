@@ -5,6 +5,7 @@ import { signOut } from "@/lib/firebase";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import AddWorkoutButton from "./AddWorkoutButton";
+import Logo from "./Logo";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -49,7 +50,7 @@ export default function Header({ user }: HeaderProps) {
       <div className="container mx-auto px-4 py-3 flex justify-between items-center">
         <Link href="/">
           <div className="flex items-center cursor-pointer">
-            <img src="/images/syncfit_logo.svg" alt="SyncFit Logo" className="h-10 mr-2" />
+            <Logo />
           </div>
         </Link>
         
