@@ -640,7 +640,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         reminderMinutes = userPrefs.reminderMinutes;
       }
       
-      // First check if this time slot has conflicts
+      // Double-check if this time slot has conflicts
+      // This is a safety measure in case the calendar has changed since we last checked
       const isAvailable = await GoogleCalendarService.checkTimeSlotConflicts(
         user.googleAccessToken,
         startTime,
@@ -650,7 +651,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!isAvailable) {
         return res.status(409).json({ 
           success: false, 
-          message: 'This time slot overlaps with another event in your calendar. Please select a different time.' 
+          message: 'Your calendar has been updated since we last checked. Please refresh to see the latest available slots.' 
         });
       }
       

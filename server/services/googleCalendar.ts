@@ -513,7 +513,7 @@ export async function createRecurringWorkouts(
       const eventStartTime = new Date(date).toISOString();
       const eventEndTime = new Date(date.getTime() + duration).toISOString();
       
-      // Check for conflicts
+      // Check for conflicts - only create events for times that are free
       const isAvailable = await checkTimeSlotConflicts(accessToken, eventStartTime, eventEndTime);
       
       if (isAvailable) {
@@ -528,6 +528,7 @@ export async function createRecurringWorkouts(
         
         events.push(event);
       }
+      // Skip slots that have conflicts - we only want to create events for available times
     }
     
     return events;
@@ -556,12 +557,9 @@ export async function createWorkoutEvent(
   const calendar = getCalendarClient(accessToken);
   
   try {
-    // First, check for conflicts
-    const isAvailable = await checkTimeSlotConflicts(accessToken, startTime, endTime);
-    
-    if (!isAvailable) {
-      throw new Error('Time slot has conflicts with existing events');
-    }
+    // Note: We don't need to check for conflicts here anymore
+    // That's done at the route level before calling this function
+    // This allows us to handle conflict errors more gracefully
     
     // Set reminders based on preferences or defaults
     const reminderOverrides = [];

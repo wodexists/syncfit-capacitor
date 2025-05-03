@@ -79,7 +79,8 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
       endTime: string, 
       workoutName: string 
     }) => {
-      // First check for conflicts
+      // Create the event directly - we're already using pre-verified free time slots
+      // from the available slots API, so no need to check for conflicts again
       const conflictCheck = await apiRequest('POST', '/api/calendar/create-event', {
         workoutName,
         startTime,
@@ -96,11 +97,12 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
           // Show a user-friendly message
           throw new Error("We're having trouble connecting to your calendar right now. Please try again in a few minutes.");
         } else {
-          throw new Error(calendarData.message || 'This time slot overlaps with another event in your calendar. Please select a different time.');
+          // In case something changed since we fetched the slots
+          throw new Error("Your calendar has changed since loading this page. Please refresh to see updated availability.");
         }
       }
       
-      // If no conflicts, schedule in our database
+      // Schedule in our database
       const scheduledWorkout = await scheduleWorkout(
         workoutId,
         startTime,
@@ -200,15 +202,24 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
   const handleRecurringSuccess = (events: any) => {
     setScheduledEvents(events);
     
-    toast({
-      title: "Recurring workouts scheduled!",
-      description: `Successfully scheduled ${events.length} occurrences of ${activeWorkout.name}`,
-      variant: "default",
-    });
-    
-    // Invalidate queries that depend on scheduled workouts
-    queryClient.invalidateQueries({ queryKey: ['/api/scheduled-workouts'] });
-    queryClient.invalidateQueries({ queryKey: ['/api/scheduled-workouts/upcoming'] });
+    // Different message based on how many events were created
+    if (events.length === 0) {
+      toast({
+        title: "No workouts scheduled",
+        description: "We couldn't find any free time slots that match your pattern. Please try different dates or times.",
+        variant: "warning",
+      });
+    } else {
+      toast({
+        title: "Recurring workouts scheduled!",
+        description: `Successfully scheduled ${events.length} occurrences of ${activeWorkout.name}`,
+        variant: "default",
+      });
+      
+      // Invalidate queries that depend on scheduled workouts
+      queryClient.invalidateQueries({ queryKey: ['/api/scheduled-workouts'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/scheduled-workouts/upcoming'] });
+    }
   };
 
   // We'll use a state to manage the workout selection view and the currently selected workout
