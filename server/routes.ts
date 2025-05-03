@@ -36,10 +36,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     })
   }));
   
-  // Debug session middleware
+  // Debug session middleware - only log on non-polling auth endpoints
   app.use((req, res, next) => {
-    if (req.path.startsWith('/api/auth')) {
+    // Only log authentication attempts, not status checks
+    if (req.path.startsWith('/api/auth') && 
+        req.path !== '/api/auth/user' && 
+        req.method !== 'GET') {
       console.log(`Session debug [${req.path}]: session ID = ${req.session.id}, has userId = ${!!req.session.userId}`);
+      // Only log cookies for non-user endpoints
       console.log(`Cookies received: ${req.headers.cookie}`);
     }
     next();

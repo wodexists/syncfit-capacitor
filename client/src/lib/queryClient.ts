@@ -29,7 +29,14 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    console.log(`Making authenticated request to ${queryKey[0]}...`);
+    // Only log auth requests and errors for debugging
+    const isAuthRequest = (queryKey[0] as string).includes('/api/auth');
+    const isDebugEnabled = false; // Set to true to enable debug logging
+    
+    if (isDebugEnabled && isAuthRequest) {
+      console.log(`Making authenticated request to ${queryKey[0]}...`);
+    }
+    
     const res = await fetch(queryKey[0] as string, {
       credentials: "include",
       headers: {
@@ -39,7 +46,9 @@ export const getQueryFn: <T>(options: {
       cache: 'no-store'
     });
 
-    console.log(`Response status for ${queryKey[0]}: ${res.status}, cookies present: ${!!document.cookie}`);
+    if (isDebugEnabled && isAuthRequest) {
+      console.log(`Response status for ${queryKey[0]}: ${res.status}, cookies present: ${!!document.cookie}`);
+    }
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
       return null;
@@ -47,7 +56,11 @@ export const getQueryFn: <T>(options: {
 
     await throwIfResNotOk(res);
     const data = await res.json();
-    console.log(`Response data for ${queryKey[0]}:`, data);
+    
+    if (isDebugEnabled && isAuthRequest) {
+      console.log(`Response data for ${queryKey[0]}:`, data);
+    }
+    
     return data;
   };
 
@@ -55,9 +68,9 @@ export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       queryFn: getQueryFn({ on401: "throw" }),
-      refetchInterval: 5000, // Check for updates every 5 seconds
+      refetchInterval: false, // Don't poll by default
       refetchOnWindowFocus: true, // Refresh when window regains focus
-      staleTime: 2000, // Data becomes stale after 2 seconds
+      staleTime: 60000, // Data becomes stale after 1 minute
       retry: 1, // Retry once on failure
       refetchOnMount: true, // Refresh when a component mounts
     },

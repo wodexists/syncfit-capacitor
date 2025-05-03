@@ -41,14 +41,14 @@ function App() {
   }>({
     queryKey: ['/api/auth/user'],
     retry: 1,
-    staleTime: 5000, // Refresh authentication status every 5 seconds
-    refetchInterval: 5000, // Keep checking auth status
+    staleTime: 30000, // Keep auth status fresh for 30 seconds
+    refetchInterval: 60000, // Only check every minute
     refetchOnWindowFocus: true,
   });
   
   // Force refresh auth state when component mounts
   useEffect(() => {
-    console.log('App component mounted - checking authentication status');
+    // Quietly refetch without logging
     refetch();
   }, []);
 
