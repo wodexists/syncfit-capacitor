@@ -470,81 +470,90 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => {
-      if (!open) onClose();
-    }}>
-      <DialogContent className="sm:max-w-[550px]">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-semibold">Schedule Workout</DialogTitle>
-        </DialogHeader>
-        
-        <div className="py-4">
-          {recurringEnabled && (
-            <Tabs value={scheduleTab} onValueChange={(value) => setScheduleTab(value as SchedulingTab)} className="mb-6">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="single" className="flex items-center">
-                  <Calendar className="h-4 w-4 mr-2" />
-                  Single Workout
-                </TabsTrigger>
-                <TabsTrigger value="recurring" className="flex items-center">
-                  <RotateCw className="h-4 w-4 mr-2" />
-                  Recurring
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-          )}
+    <>
+      {/* Google Calendar API Setup Guide */}
+      <GoogleCalendarSetupGuide 
+        isOpen={showCalendarSetup} 
+        onClose={() => setShowCalendarSetup(false)} 
+        projectId={projectId}
+      />
+      
+      <Dialog open={isOpen} onOpenChange={(open) => {
+        if (!open) onClose();
+      }}>
+        <DialogContent className="sm:max-w-[550px]">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold">Schedule Workout</DialogTitle>
+          </DialogHeader>
           
-          {renderMainContent()}
-        </div>
-        
-        <DialogFooter className="flex justify-end space-x-3">
-          <Button 
-            variant="outline" 
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onClose(e);
-            }}
-            type="button"
-          >
-            Cancel
-          </Button>
-          {(!recurringEnabled || scheduleTab === "single") ? (
+          <div className="py-4">
+            {recurringEnabled && (
+              <Tabs value={scheduleTab} onValueChange={(value) => setScheduleTab(value as SchedulingTab)} className="mb-6">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="single" className="flex items-center">
+                    <Calendar className="h-4 w-4 mr-2" />
+                    Single Workout
+                  </TabsTrigger>
+                  <TabsTrigger value="recurring" className="flex items-center">
+                    <RotateCw className="h-4 w-4 mr-2" />
+                    Recurring
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            )}
+            
+            {renderMainContent()}
+          </div>
+          
+          <DialogFooter className="flex justify-end space-x-3">
             <Button 
-              onClick={(e) => handleSchedule(e)} 
-              disabled={!selectedTimeSlot || scheduleMutation.isPending}
-              type="button"
-              className="flex items-center"
-            >
-              {scheduleMutation.isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Scheduling...
-                </>
-              ) : (
-                <>
-                  <Calendar className="mr-2 h-4 w-4" />
-                  Add to Calendar
-                </>
-              )}
-            </Button>
-          ) : recurringEnabled && scheduleTab === "recurring" && scheduledEvents.length === 0 ? (
-            <Button 
+              variant="outline" 
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                setScheduleTab("single");
-              }} 
+                onClose(e);
+              }}
               type="button"
-              variant="secondary"
-              className="flex items-center"
             >
-              <ChevronRight className="mr-2 h-4 w-4" />
-              Continue
+              Cancel
             </Button>
-          ) : null}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+            {(!recurringEnabled || scheduleTab === "single") ? (
+              <Button 
+                onClick={(e) => handleSchedule(e)} 
+                disabled={!selectedTimeSlot || scheduleMutation.isPending}
+                type="button"
+                className="flex items-center"
+              >
+                {scheduleMutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Scheduling...
+                  </>
+                ) : (
+                  <>
+                    <Calendar className="mr-2 h-4 w-4" />
+                    Add to Calendar
+                  </>
+                )}
+              </Button>
+            ) : recurringEnabled && scheduleTab === "recurring" && scheduledEvents.length === 0 ? (
+              <Button 
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setScheduleTab("single");
+                }} 
+                type="button"
+                variant="secondary"
+                className="flex items-center"
+              >
+                <ChevronRight className="mr-2 h-4 w-4" />
+                Continue
+              </Button>
+            ) : null}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

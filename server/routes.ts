@@ -672,11 +672,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Provide more helpful error messages for common Google Calendar API errors
       const errorMessage = String(error);
       if (errorMessage.includes("API has not been used") || errorMessage.includes("it is disabled")) {
+        // Extract project ID for easier setup
+        const projectIdMatch = errorMessage.match(/project=(\d+)/);
+        const projectId = projectIdMatch ? projectIdMatch[1] : '';
+        
         return res.status(500).json({ 
           success: false, 
           message: 'Google Calendar API needs to be enabled',
           error: errorMessage,
-          helpText: "The Google Calendar API needs to be enabled in your Google Cloud Console. Please visit the link in the error message, enable the API, and try again in a few minutes."
+          helpText: "The Google Calendar API needs to be enabled in your Google Cloud Console. Please visit the link in the error message, enable the API, and try again in a few minutes.",
+          projectId
         });
       }
       
@@ -742,11 +747,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Provide more helpful error messages for common Google Calendar API errors
       const errorMessage = String(error);
       if (errorMessage.includes("API has not been used") || errorMessage.includes("it is disabled")) {
+        // Extract project ID for easier setup
+        const projectIdMatch = errorMessage.match(/project=(\d+)/);
+        const projectId = projectIdMatch ? projectIdMatch[1] : '';
+        
         return res.status(500).json({ 
           success: false, 
           message: 'Google Calendar API needs to be enabled',
           error: errorMessage,
-          helpText: "The Google Calendar API needs to be enabled in your Google Cloud Console. Please visit the link in the error message, enable the API, and try again in a few minutes."
+          helpText: "The Google Calendar API needs to be enabled in your Google Cloud Console. Please visit the link in the error message, enable the API, and try again in a few minutes.",
+          projectId
         });
       }
       
