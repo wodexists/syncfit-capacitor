@@ -33,6 +33,17 @@ provider.addScope('https://www.googleapis.com/auth/calendar.events');
 provider.addScope('profile');
 provider.addScope('email');
 
+// For popup detection
+let popupSupported = true;
+// Check if we're in a problematic environment for popups
+if (typeof window !== 'undefined') {
+  // iOS Safari and some mobile browsers have issues with popups
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+  popupSupported = !(isMobile && isSafari);
+  console.log(`Environment check: Mobile: ${isMobile}, Safari: ${isSafari}, Popup supported: ${popupSupported}`);
+}
+
 /**
  * Helper function to process Firebase authentication errors
  */
@@ -175,15 +186,29 @@ export async function signInWithGoogle(): Promise<{success: boolean, error?: str
     // This is an important workaround - we need to select a different approach for Google auth
     // that can work properly in Replit's preview environment without redirect URI config
     
+    // Customize the Google Auth Provider to force select account every time
+    provider.setCustomParameters({
+      prompt: 'select_account',
+      // Adding these parameters to improve popup handling
+      display: 'popup',
+      include_granted_scopes: 'true'
+    });
+    
     // First, try using popup auth which works in many scenarios including Replit
     try {
-      // Customize the Google Auth Provider to force select account every time
-      // This helps avoid issues with remembered accounts
-      provider.setCustomParameters({
-        prompt: 'select_account'
-      });
+      if (!popupSupported) {
+        console.log("Popup authentication might not be supported in this browser environment.");
+        console.log("We'll try anyway, but if it fails, consider using a different browser.");
+      }
       
       console.log("Attempting popup authentication...");
+      
+      // Inform the user about popups
+      console.log("If you see a popup blocked message, please allow popups for this site");
+      
+      // Add a small delay before triggering the popup to ensure DOM is ready
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       const result = await signInWithPopup(auth, provider);
       
       // If we get here, the popup auth was successful
@@ -223,9 +248,10 @@ export async function signInWithGoogle(): Promise<{success: boolean, error?: str
           const firebaseError = err as { code: string };
           
           if (firebaseError.code === 'auth/popup-closed-by-user') {
+            console.log("Popup was closed. This could be due to browser restrictions or user action.");
             return {
               success: false,
-              error: "Authentication cancelled: You closed the popup window. Please try again."
+              error: "Authentication cancelled: The login window was closed. Please try again and keep the Google login window open until the process completes. Make sure popups are not blocked for this site."
             };
           }
         }
