@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import RecurringWorkoutForm from "./RecurringWorkoutForm";
+import { GoogleCalendarSetupGuide } from "./GoogleCalendarSetupGuide";
 
 type SchedulingMode = "smart" | "manual";
 type SchedulingTab = "single" | "recurring";
@@ -36,6 +37,8 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<string | null>(null);
   const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
   const [scheduledEvents, setScheduledEvents] = useState<any[]>([]);
+  const [showCalendarSetup, setShowCalendarSetup] = useState<boolean>(false);
+  const [projectId, setProjectId] = useState<string>("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -89,6 +92,12 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
       if (!calendarData.success) {
         // Check if the error is related to Google Calendar API not being enabled
         if (calendarData.error && calendarData.error.includes("Google Calendar API has not been used in project")) {
+          // Extract the project ID from the error message
+          const projectIdMatch = calendarData.error.match(/project=(\d+)/);
+          if (projectIdMatch && projectIdMatch[1]) {
+            setProjectId(projectIdMatch[1]);
+            setShowCalendarSetup(true);
+          }
           throw new Error("Calendar API not enabled. Please enable the Google Calendar API in your Google Cloud Console.");
         } else {
           throw new Error(calendarData.message || 'Calendar conflict detected');
