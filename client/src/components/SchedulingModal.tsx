@@ -207,7 +207,7 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
       toast({
         title: "No workouts scheduled",
         description: "We couldn't find any free time slots that match your pattern. Please try different dates or times.",
-        variant: "warning",
+        variant: "destructive",
       });
     } else {
       toast({
