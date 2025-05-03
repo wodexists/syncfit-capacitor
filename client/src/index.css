@@ -13,7 +13,7 @@
   --card-foreground: 20 14.3% 4.1%;
   --border: 20 5.9% 90%;
   --input: 20 5.9% 90%;
-  --primary: 207 90% 54%;
+  --primary: 214 80% 45%;
   --primary-foreground: 211 100% 99%;
   --secondary: 142 69% 58%;
   --secondary-foreground: 142 100% 10%;
@@ -23,19 +23,19 @@
   --destructive-foreground: 60 9.1% 97.8%;
   --ring: 20 14.3% 4.1%;
   --radius: 0.5rem;
-  --chart-1: 207 90% 54%;
+  --chart-1: 214 80% 45%;
   --chart-2: 142 69% 58%;
   --chart-3: 43 96% 58%;
   --chart-4: 338 85% 60%;
   --chart-5: 262 83% 58%;
 
   /* SyncFit sidebar colors */
-  --sidebar-background: 207 90% 54%;
+  --sidebar-background: 214 80% 45%;
   --sidebar-foreground: 0 0% 100%;
   --sidebar-primary: 0 0% 100%;
-  --sidebar-primary-foreground: 207 90% 54%;
+  --sidebar-primary-foreground: 214 80% 45%;
   --sidebar-accent: 0 0% 93%;
-  --sidebar-accent-foreground: 207 90% 54%;
+  --sidebar-accent-foreground: 214 80% 45%;
   --sidebar-border: 0 0% 82%;
   --sidebar-ring: 0 0% 80%;
 }
@@ -51,7 +51,7 @@
   --card-foreground: 0 0% 98%;
   --border: 240 3.7% 15.9%;
   --input: 240 3.7% 15.9%;
-  --primary: 207 90% 54%;
+  --primary: 214 80% 45%;
   --primary-foreground: 211 100% 99%;
   --secondary: 142 69% 58%;
   --secondary-foreground: 142 100% 10%;

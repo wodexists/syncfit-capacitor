@@ -88,7 +88,7 @@ export default function Login() {
         <Card className="shadow-lg">
           <CardHeader className="text-center bg-primary text-white rounded-t-lg pb-6">
             <div className="flex items-center justify-center mb-2">
-              <img src="/images/syncfit_logo_main.png" alt="SyncFit Logo" className="h-12 mr-2" />
+              <img src="/images/syncfit_logo_main.png" alt="SyncFit Logo" className="h-16 mr-2" />
             </div>
             <CardDescription className="text-primary-foreground text-lg">
               Smart Fitness Scheduling
@@ -98,13 +98,13 @@ export default function Login() {
           <CardContent className="pt-6 pb-4">
             <div className="space-y-4 text-center">
               <div className="flex justify-center space-x-2 mb-6">
-                <div className="bg-blue-100 p-3 rounded-full">
+                <div className="bg-primary/10 p-3 rounded-full">
                   <span className="material-icons text-primary text-2xl">calendar_today</span>
                 </div>
-                <div className="bg-blue-100 p-3 rounded-full">
+                <div className="bg-primary/10 p-3 rounded-full">
                   <span className="material-icons text-primary text-2xl">schedule</span>
                 </div>
-                <div className="bg-blue-100 p-3 rounded-full">
+                <div className="bg-primary/10 p-3 rounded-full">
                   <span className="material-icons text-primary text-2xl">fitness_center</span>
                 </div>
               </div>
