@@ -49,8 +49,7 @@ export default function Header({ user }: HeaderProps) {
       <div className="container mx-auto px-4 py-3 flex justify-between items-center">
         <Link href="/">
           <div className="flex items-center cursor-pointer">
-            <span className="material-icons mr-2">fitness_center</span>
-            <h1 className="text-2xl font-bold">SyncFit</h1>
+            <img src="/images/syncfit_logo.svg" alt="SyncFit Logo" className="h-10 mr-2" />
           </div>
         </Link>
         
