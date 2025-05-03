@@ -86,11 +86,11 @@ export default function Login() {
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
       <div className="w-full max-w-md">
         <Card className="shadow-lg">
-          <CardHeader className="text-center bg-primary text-white rounded-t-lg pb-6">
-            <div className="flex items-center justify-center mb-2">
-              <img src="/images/syncfit_logo_main.png" alt="SyncFit Logo" className="h-24 mr-2" />
+          <CardHeader className="text-center bg-primary text-white rounded-t-lg pb-4 relative pt-4">
+            <div className="flex items-center justify-center -mt-2 -mb-2">
+              <img src="/images/syncfit_logo_main.png" alt="SyncFit Logo" className="h-28 mr-2" />
             </div>
-            <CardDescription className="text-primary-foreground text-lg">
+            <CardDescription className="text-primary-foreground text-lg mt-2">
               Smart Fitness Scheduling
             </CardDescription>
           </CardHeader>

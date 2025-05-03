@@ -47,9 +47,9 @@ export default function Header({ user }: HeaderProps) {
 
   return (
     <header className="bg-primary text-white shadow-md">
-      <div className="container mx-auto px-4 py-2 flex justify-between items-center">
+      <div className="container mx-auto px-4 py-0 flex justify-between items-center">
         <Link href="/">
-          <div className="flex items-center cursor-pointer -my-4">
+          <div className="flex items-center cursor-pointer -my-6">
             <img src="/images/syncfit_logo_main.png" alt="SyncFit Logo" className="h-20" />
           </div>
         </Link>
