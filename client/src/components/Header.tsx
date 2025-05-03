@@ -67,7 +67,7 @@ export default function Header({ user }: HeaderProps) {
               Explore
             </Button>
           </Link>
-          <AddWorkoutButton text="Add Workout" />
+          <AddWorkoutButton label="Add Workout" />
         </div>
         
         <div className="flex items-center space-x-4">
