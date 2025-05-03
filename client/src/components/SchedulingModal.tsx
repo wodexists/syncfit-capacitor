@@ -72,7 +72,7 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
       workoutName: string 
     }) => {
       // First check for conflicts
-      const conflictCheck = await apiRequest('/api/calendar/create-event', 'POST', {
+      const conflictCheck = await apiRequest('POST', '/api/calendar/create-event', {
         workoutName,
         startTime,
         endTime

@@ -32,7 +32,7 @@ export async function findAvailableTimeSlots(
   durationMinutes: number = 30
 ): Promise<TimeSlot[]> {
   try {
-    const response = await apiRequest('/api/calendar/available-slots', 'POST', {
+    const response = await apiRequest('POST', '/api/calendar/available-slots', {
       date: date.toISOString(),
       durationMinutes
     });
@@ -49,7 +49,7 @@ export async function findAvailableTimeSlots(
  */
 export async function getTodayAvailability(): Promise<AvailabilitySlot[]> {
   try {
-    const response = await apiRequest('/api/calendar/today-availability', 'GET');
+    const response = await apiRequest('GET', '/api/calendar/today-availability');
     const data = await response.json();
     return data;
   } catch (error) {
