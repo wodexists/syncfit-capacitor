@@ -226,17 +226,43 @@ export async function signInWithGoogle(): Promise<{success: boolean, error?: str
       console.log(`Successfully authenticated ${user.email} with Google`);
       
       // Store user and tokens in our backend
-      console.log("Sending user data to backend...");
-      await apiRequest('POST', '/api/auth/google', {
+      console.log("Sending user data to backend...", {
         googleId: user.uid,
         email: user.email,
         displayName: user.displayName,
-        accessToken,
-        refreshToken: '', // Google doesn't provide refresh token via popup
+        hasAccessToken: !!accessToken,
         profilePicture: user.photoURL || undefined
       });
       
-      console.log("User successfully authenticated and data stored in backend");
+      try {
+        const response = await apiRequest('POST', '/api/auth/google', {
+          googleId: user.uid,
+          email: user.email,
+          displayName: user.displayName,
+          accessToken,
+          refreshToken: '', // Google doesn't provide refresh token via popup
+          profilePicture: user.photoURL || undefined
+        });
+        
+        // Parse and log the response
+        const responseData = await response.json();
+        console.log("Authentication API response:", responseData);
+        
+        // Verify session is working by immediately checking user status
+        const userCheckResponse = await fetch('/api/auth/user', { credentials: 'include' });
+        const userCheckData = await userCheckResponse.json();
+        console.log("User session check after login:", userCheckData);
+        
+        if (!userCheckData.authenticated) {
+          console.error("Session not established properly despite successful API call!");
+          throw new Error("Session not established properly");
+        }
+        
+        console.log("User successfully authenticated and data stored in backend");
+      } catch (error) {
+        console.error("API request to backend failed:", error);
+        throw error;
+      }
       return { success: true };
     } catch (err) {
       console.error("Popup authentication failed, error:", err);

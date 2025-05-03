@@ -23,7 +23,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     cookie: { 
       maxAge: 86400000, // One day
       secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax', // Helps with cross-site issues
+      httpOnly: true, // Enhanced security
     },
+    name: 'syncfit.sid', // Custom name to avoid default "connect.sid"
     secret: process.env.SESSION_SECRET || 'syncfit-secret-key',
     resave: false,
     saveUninitialized: false,
@@ -31,6 +34,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       checkPeriod: 86400000 // Prune expired entries every 24h
     })
   }));
+  
+  // Debug session middleware
+  app.use((req, res, next) => {
+    if (req.path.startsWith('/api/auth')) {
+      console.log(`Session debug [${req.path}]: session ID = ${req.session.id}, has userId = ${!!req.session.userId}`);
+      console.log(`Cookies received: ${req.headers.cookie}`);
+    }
+    next();
+  });
 
   // Auth middleware
   const ensureAuthenticated = (req: Request, res: Response, next: Function) => {
@@ -80,6 +92,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Set session
       req.session.userId = user.id;
       
+      // Force session save to ensure it's immediately available
+      await new Promise<void>((resolve, reject) => {
+        req.session.save((err) => {
+          if (err) {
+            console.error("Error saving session:", err);
+            reject(err);
+          } else {
+            console.log(`Session saved successfully, session ID: ${req.session.id}`);
+            resolve();
+          }
+        });
+      });
+      
       res.status(200).json({ 
         success: true, 
         user: { 
@@ -90,7 +115,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
       
-      console.log(`User ${user.id} successfully authenticated with Google`);
+      console.log(`User ${user.id} successfully authenticated with Google, session ID: ${req.session.id}`);
     
     } catch (error) {
       console.error('Google auth error:', error);
@@ -129,6 +154,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Set session
       req.session.userId = user.id;
       
+      // Force session save to ensure it's immediately available
+      await new Promise<void>((resolve, reject) => {
+        req.session.save((err) => {
+          if (err) {
+            console.error("Error saving session:", err);
+            reject(err);
+          } else {
+            console.log(`Session saved successfully, session ID: ${req.session.id}`);
+            resolve();
+          }
+        });
+      });
+      
       res.status(200).json({ 
         success: true, 
         user: { 
@@ -139,7 +177,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
       
-      console.log(`User ${user.id} successfully authenticated with email`);
+      console.log(`User ${user.id} successfully authenticated with email, session ID: ${req.session.id}`);
     } catch (error) {
       console.error('Email auth error:', error);
       res.status(500).json({ message: 'Authentication failed', error: String(error) });
