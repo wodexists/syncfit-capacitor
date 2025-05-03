@@ -55,8 +55,15 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
   // Check if recurring workouts are enabled
   const recurringEnabled = userPreferences?.enableRecurring || false;
 
-  // Default to first workout if none selected
-  const workout = selectedWorkout || (workouts && workouts.length > 0 ? workouts[0] : undefined);
+  // State for workout selection when no workout is provided
+  const [selectedWorkoutId, setSelectedWorkoutId] = useState<number | null>(
+    selectedWorkout ? selectedWorkout.id : null
+  );
+  
+  // If a workout is directly selected, use it; otherwise use the one selected from the list
+  const workout = selectedWorkout || 
+    (workouts && selectedWorkoutId ? 
+      workouts.find(w => w.id === selectedWorkoutId) : undefined);
 
   // Create mutation for scheduling single workouts
   const scheduleMutation = useMutation({
@@ -191,6 +198,66 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
     queryClient.invalidateQueries({ queryKey: ['/api/scheduled-workouts/upcoming'] });
   };
 
+  // Render workout selection if no workout is selected yet
+  if (!workout && workouts) {
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-[550px]">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold">Select a Workout</DialogTitle>
+          </DialogHeader>
+          
+          <div className="py-4 grid gap-3 max-h-[60vh] overflow-y-auto pr-1">
+            {workouts.map((w) => (
+              <div 
+                key={w.id} 
+                className={`border rounded-md p-3 cursor-pointer hover:border-primary hover:bg-primary/5 ${
+                  selectedWorkoutId === w.id ? 'border-primary bg-primary/10' : ''
+                }`}
+                onClick={() => setSelectedWorkoutId(w.id)}
+              >
+                <div className="flex items-start gap-3">
+                  <div className="h-16 w-16 rounded-md overflow-hidden">
+                    <img src={w.imageUrl} alt={w.name} className="h-full w-full object-cover" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-medium">{w.name}</h3>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
+                      <span className="flex items-center">
+                        <Clock className="h-3.5 w-3.5 mr-1" />
+                        {formatWorkoutDuration(w.duration)}
+                      </span>
+                      <span className="flex items-center">
+                        <Star className="h-3.5 w-3.5 mr-1 text-yellow-500 fill-yellow-500" />
+                        {(w.rating / 10).toFixed(1)}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{w.description}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          <DialogFooter className="flex justify-end space-x-3">
+            <Button variant="outline" onClick={onClose}>Cancel</Button>
+            <Button 
+              onClick={() => {
+                // This will trigger the effect since workout will now be found
+                setSelectedWorkoutId(selectedWorkoutId);
+              }} 
+              disabled={!selectedWorkoutId}
+              className="flex items-center"
+            >
+              <Calendar className="mr-2 h-4 w-4" />
+              Continue
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+  
   if (!workout) {
     return null;
   }

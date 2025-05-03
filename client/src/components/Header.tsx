@@ -74,7 +74,7 @@ export default function Header({ user }: HeaderProps) {
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+                <Button variant="ghost" className="relative h-10 w-10 rounded-full p-0 overflow-hidden">
                   {user.profilePicture ? (
                     <img 
                       src={user.profilePicture} 
