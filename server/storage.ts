@@ -57,12 +57,14 @@ export class MemStorage implements IStorage {
   private workoutCategories: Map<number, WorkoutCategory>;
   private scheduledWorkouts: Map<number, ScheduledWorkout>;
   private userPreferences: Map<number, UserPreference>;
+  private slotStats: Map<number, SlotStat>;
   
   private userIdCounter: number;
   private workoutIdCounter: number;
   private categoryIdCounter: number;
   private scheduledWorkoutIdCounter: number;
   private userPrefIdCounter: number;
+  private slotStatIdCounter: number;
 
   constructor() {
     this.users = new Map();
@@ -70,12 +72,14 @@ export class MemStorage implements IStorage {
     this.workoutCategories = new Map();
     this.scheduledWorkouts = new Map();
     this.userPreferences = new Map();
+    this.slotStats = new Map();
     
     this.userIdCounter = 1;
     this.workoutIdCounter = 1;
     this.categoryIdCounter = 1;
     this.scheduledWorkoutIdCounter = 1;
     this.userPrefIdCounter = 1;
+    this.slotStatIdCounter = 1;
     
     // We'll load the initial data later when needed through the initializeData method
     // that can be called explicitly
@@ -363,7 +367,9 @@ export class MemStorage implements IStorage {
       selectedCalendars: preferences.selectedCalendars || null,
       reminderMinutes: preferences.reminderMinutes || null,
       enableRecurring: preferences.enableRecurring || null,
-      recurringPattern: preferences.recurringPattern || null
+      recurringPattern: preferences.recurringPattern || null,
+      learningEnabled: preferences.learningEnabled ?? true, // Default to true if not provided
+      lastLearningChange: preferences.lastLearningChange || null
     };
     this.userPreferences.set(id, newPreferences);
     return newPreferences;
@@ -376,6 +382,43 @@ export class MemStorage implements IStorage {
     const updatedPrefs: UserPreference = { ...existingPrefs, ...updates };
     this.userPreferences.set(existingPrefs.id, updatedPrefs);
     return updatedPrefs;
+  }
+  
+  // Slot statistics operations
+  async getSlotStat(userId: number, slotId: string): Promise<SlotStat | undefined> {
+    return Array.from(this.slotStats.values()).find(
+      stat => stat.userId === userId && stat.slotId === slotId
+    );
+  }
+
+  async getSlotStats(userId: number): Promise<SlotStat[]> {
+    return Array.from(this.slotStats.values()).filter(
+      stat => stat.userId === userId
+    );
+  }
+
+  async createSlotStat(slotStat: InsertSlotStat): Promise<SlotStat> {
+    const id = this.slotStatIdCounter++;
+    const newSlotStat: SlotStat = {
+      ...slotStat,
+      id,
+      totalScheduled: slotStat.totalScheduled || 0,
+      totalCancelled: slotStat.totalCancelled || 0,
+      totalCompleted: slotStat.totalCompleted || 0,
+      successRate: slotStat.successRate || 0,
+      lastUsed: slotStat.lastUsed || null
+    };
+    this.slotStats.set(id, newSlotStat);
+    return newSlotStat;
+  }
+
+  async updateSlotStat(id: number, updates: Partial<InsertSlotStat>): Promise<SlotStat | undefined> {
+    const existingStat = this.slotStats.get(id);
+    if (!existingStat) return undefined;
+    
+    const updatedStat: SlotStat = { ...existingStat, ...updates };
+    this.slotStats.set(id, updatedStat);
+    return updatedStat;
   }
 }
 

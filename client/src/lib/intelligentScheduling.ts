@@ -223,8 +223,8 @@ export async function rankTimeSlots(
     // or they're in the top 3
     sortedSlots.forEach((slot, index) => {
       slot.isRecommended = 
-        (slot.score && slot.score >= 5) || // Has a good score
-        (index < 3 && slot.score && slot.score > 0); // Or in top 3 with positive score
+        (slot.score !== undefined && slot.score >= 5) || // Has a good score
+        (index < 3 && slot.score !== undefined && slot.score > 0); // Or in top 3 with positive score
     });
   }
   
