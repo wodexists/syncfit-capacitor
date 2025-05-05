@@ -3,6 +3,7 @@ import UpcomingWorkouts from "@/components/UpcomingWorkouts";
 import CalendarIntegration from "@/components/CalendarIntegration";
 import AvailabilityTimeline from "@/components/AvailabilityTimeline";
 import { SyncStatus } from "../components/SyncStatus";
+import { AdminSyncPanel } from "@/components/AdminSyncPanel";
 
 interface User {
   id: number;
@@ -42,6 +43,9 @@ export default function Dashboard({ user }: DashboardProps) {
         {/* Availability Timeline Component */}
         <AvailabilityTimeline />
       </section>
+      
+      {/* Admin Sync Panel - Only visible to admins */}
+      <AdminSyncPanel />
     </div>
   );
 }

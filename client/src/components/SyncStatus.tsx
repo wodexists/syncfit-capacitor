@@ -29,7 +29,8 @@ export function SyncStatus() {
     synced: 0,
     error: 0,
     conflict: 0,
-    success: 0
+    success: 0,
+    lastSyncedAt: undefined
   });
   const [expanded, setExpanded] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -170,8 +171,29 @@ export function SyncStatus() {
         
         <Progress value={syncedPercentage} className="h-2" />
         
+        {/* Last Synced Timestamp */}
+        {syncCounts.lastSyncedAt && (
+          <div className="mt-2 text-xs text-muted-foreground flex items-center">
+            <span>Last synced at {format(syncCounts.lastSyncedAt, 'MMM d, h:mm a')}</span>
+            <span className="mx-2">•</span>
+            <span>{syncCounts.synced} synced</span>
+            {syncCounts.error > 0 && (
+              <>
+                <span className="mx-2">•</span>
+                <span className="text-red-500">{syncCounts.error} errors</span>
+              </>
+            )}
+            {syncCounts.conflict > 0 && (
+              <>
+                <span className="mx-2">•</span>
+                <span className="text-amber-500">{syncCounts.conflict} conflicts</span>
+              </>
+            )}
+          </div>
+        )}
+        
         {expanded && !loading && (
-          <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-4 gap-3">
             <div className="flex items-center justify-between border rounded-md p-2 bg-muted/50">
               <div className="flex items-center">
                 <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 mr-2">
@@ -201,19 +223,66 @@ export function SyncStatus() {
               </div>
               <span className="text-sm">{syncCounts.error}</span>
             </div>
+            
+            <div className="flex items-center justify-between border rounded-md p-2 bg-muted/50">
+              <div className="flex items-center">
+                <div className="flex items-center justify-center w-6 h-6 rounded-full bg-amber-100 mr-2">
+                  <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
+                </div>
+                <span className="text-sm font-medium">Conflicts</span>
+              </div>
+              <span className="text-sm">{syncCounts.conflict}</span>
+            </div>
           </div>
         )}
         
-        {expanded && syncCounts.error > 0 && (
-          <div className="mt-3 flex items-start p-3 border rounded-md bg-yellow-50 border-yellow-200">
-            <AlertCircle className="h-5 w-5 text-yellow-500 mr-2 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-medium text-yellow-800">Some events failed to sync</p>
-              <p className="text-xs text-yellow-700 mt-1">
-                We'll automatically retry syncing these events with Google Calendar. 
-                Check your calendar permissions if this persists.
-              </p>
-            </div>
+        {expanded && (syncCounts.error > 0 || syncCounts.conflict > 0) && (
+          <div className="mt-3">
+            {syncCounts.error > 0 && (
+              <div className="flex items-start p-3 border rounded-md bg-yellow-50 border-yellow-200 mb-3">
+                <AlertCircle className="h-5 w-5 text-yellow-500 mr-2 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-yellow-800">Some events failed to sync</p>
+                  <p className="text-xs text-yellow-700 mt-1">
+                    We'll automatically retry syncing these events with Google Calendar. 
+                    Check your calendar permissions if this persists.
+                  </p>
+                  <div className="mt-2 flex justify-end">
+                    <Button 
+                      size="sm" 
+                      className="h-7 text-xs"
+                      onClick={handleRetry}
+                      disabled={retrying}
+                    >
+                      {retrying ? (
+                        <>
+                          <RotateCw className="h-3 w-3 mr-1 animate-spin" />
+                          Retrying...
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="h-3 w-3 mr-1" />
+                          Retry Failed Events
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {syncCounts.conflict > 0 && (
+              <div className="flex items-start p-3 border rounded-md bg-amber-50 border-amber-200">
+                <AlertTriangle className="h-5 w-5 text-amber-500 mr-2 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-amber-800">Calendar conflicts detected</p>
+                  <p className="text-xs text-amber-700 mt-1">
+                    Some events in your Google Calendar have been modified outside of SyncFit. 
+                    These modifications won't be automatically overwritten.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
