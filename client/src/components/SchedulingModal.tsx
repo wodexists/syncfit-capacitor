@@ -347,8 +347,21 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
   useEffect(() => {
     const fetchTimeSlots = async () => {
       if (workout) {
-        // Get raw time slots from the API
-        const slotsResponse = await findAvailableTimeSlots(new Date(), workout.duration);
+        // Get user's time horizon preference if available
+        const userPrefsResponse = await apiRequest('GET', '/api/user-preferences');
+        let timeHorizon = 1; // Default to searching today only
+        
+        try {
+          const userPrefs = await userPrefsResponse.json();
+          if (userPrefs && userPrefs.defaultTimeHorizon) {
+            timeHorizon = parseInt(userPrefs.defaultTimeHorizon);
+          }
+        } catch (error) {
+          console.error('Error parsing user preferences:', error);
+        }
+        
+        // Get raw time slots from the API with time horizon
+        const slotsResponse = await findAvailableTimeSlots(new Date(), workout.duration, timeHorizon);
         const slots = slotsResponse.slots;
         
         // Store the timestamp for validation during booking
