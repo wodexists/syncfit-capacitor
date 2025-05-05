@@ -11,6 +11,8 @@ import { formatDateTimeRange } from "@/lib/calendar";
 import { apiRequest } from "@/lib/queryClient";
 import { Loader2, CalendarIcon, XCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "../hooks/useAuth";
+import { createPendingEvent, updateEventAfterSync, markEventSyncError } from "@/lib/calendarSync";
 
 interface RecurringWorkoutFormProps {
   workoutName: string;
@@ -37,11 +39,15 @@ export default function RecurringWorkoutForm({
   const [datePopoverOpen, setDatePopoverOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   // Parse initial date
   const initialDate = new Date(startTime);
   
   const handleSubmit = async () => {
+    // Array to store pending event IDs
+    const tempEventIds: string[] = [];
+    
     try {
       setIsSubmitting(true);
       
@@ -56,12 +62,83 @@ export default function RecurringWorkoutForm({
         excludedDates: excludedDates.map(d => formatCalendarDate(d))
       };
       
+      // First create a pending event for the initial occurrence
+      if (user?.firebaseUid) {
+        try {
+          const tempId = await createPendingEvent(
+            user.firebaseUid,
+            workoutName,
+            startTime,
+            endTime
+          );
+          tempEventIds.push(tempId);
+          console.log("Created pending event for initial occurrence:", tempId);
+        } catch (error) {
+          console.error("Error creating pending event in Firestore:", error);
+          // Continue even if Firebase tracking fails - don't block the user
+        }
+      }
+      
       const response = await apiRequest('POST', '/api/calendar/create-recurring-events', payload);
       const result = await response.json();
       
       if (result.success) {
+        // Update pending events with real Google Calendar event IDs
+        if (user?.firebaseUid && result.events && result.events.length > 0) {
+          try {
+            // Update the first event with the Google Calendar ID
+            await updateEventAfterSync(
+              user.firebaseUid,
+              tempEventIds[0], // First event ID
+              result.events[0].id,
+              result.events[0].htmlLink
+            );
+            
+            // For additional events (beyond the first one we already tracked),
+            // create them directly as synced events
+            for (let i = 1; i < result.events.length; i++) {
+              const event = result.events[i];
+              const eventStartTime = new Date(event.start.dateTime || event.start.date);
+              const eventEndTime = new Date(event.end.dateTime || event.end.date);
+              
+              // Create a new event and mark it as already synced
+              const tempId = await createPendingEvent(
+                user.firebaseUid,
+                workoutName,
+                eventStartTime.toISOString(),
+                eventEndTime.toISOString()
+              );
+              
+              await updateEventAfterSync(
+                user.firebaseUid,
+                tempId,
+                event.id,
+                event.htmlLink
+              );
+            }
+          } catch (error) {
+            console.error("Error updating events after sync:", error);
+            // Continue even if updates fail - we'll have a retry mechanism
+          }
+        }
+        
         onSuccess(result.events);
       } else {
+        // Mark any pending events as errors
+        if (user?.firebaseUid && tempEventIds.length > 0) {
+          try {
+            for (const tempId of tempEventIds) {
+              await markEventSyncError(
+                user.firebaseUid,
+                tempId,
+                result.message || "Failed to create recurring events"
+              );
+            }
+          } catch (e) {
+            console.error("Error marking events as errors:", e);
+          }
+        }
+        
         // Show a user-friendly error message
         if (result.message && result.message.includes("calendar has been updated")) {
           // If calendar was updated, we'll return an empty array to show no events were created
@@ -76,6 +153,21 @@ export default function RecurringWorkoutForm({
         }
       }
     } catch (error) {
+      // Mark any pending events as errors
+      if (user?.firebaseUid && tempEventIds.length > 0) {
+        try {
+          for (const tempId of tempEventIds) {
+            await markEventSyncError(
+              user.firebaseUid,
+              tempId,
+              error instanceof Error ? error.message : "Unknown error during recurring event creation"
+            );
+          }
+        } catch (e) {
+          console.error("Error marking events as errors:", e);
+        }
+      }
+      
       toast({
         title: "Error creating recurring workouts",
         description: error instanceof Error ? error.message : "An unknown error occurred",

@@ -152,7 +152,7 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
             }
           }
           
-          const freshSlots = await findAvailableTimeSlots(new Date(), activeWorkout.duration);
+          const freshSlots = await findAvailableTimeSlots(new Date(), workout?.duration || 60);
           setAvailableSlots(freshSlots);
           
           // Select first time slot by default
