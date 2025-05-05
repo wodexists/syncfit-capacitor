@@ -1,0 +1,86 @@
+Current Issues Identified:
+
+1. Sync Status shows "Syncing..." indefinitely
+
+Likely root cause: a failed or stuck async call in the sync lifecycle (Firestore update, calendar API call, or both).
+
+Missing: meaningful error state UI when sync fails or stalls.
+
+
+
+2. 409 Scheduling Conflict ("slot just filled up")
+
+This should be handled gracefully by auto-refreshing slot options or offering fallback choices (e.g., “View other times”).
+
+You still end up in a "no slots available" state without guidance or next action.
+
+
+
+3. No backup scheduling UX if today is full
+
+Despite multi-day logic being claimed implemented, it's not reflected in the UI — it only reports failure without offering tomorrow or alternatives.
+
+
+
+
+
+---
+
+Key Recommendations:
+
+1. Add Real-Time Sync Diagnostics
+
+Include a visual log or collapsible detail below “Syncing...” that shows:
+
+Last successful fetch from Google Calendar
+
+Status of Firestore update (e.g., pending, error, conflict)
+
+Any Google API error messages
+
+
+
+2. Improve Fallback Logic
+
+If today is full:
+
+Prompt user with: “Today looks full. Want to try tomorrow or pick a new time window?”
+
+Add a quick-picker for time horizon (e.g., "Next 2 days", "Weekend", "Next 7 days")
+
+
+
+3. Expand Retry & Conflict Resolution
+
+If 409 occurs, refresh availability instantly and show next best alternative without manual action.
+
+Add lightweight deduplication or delay window to avoid race conditions with simultaneous scheduling attempts.
+
+
+4. Expose Failed Test Replays or Logging
+
+Even if tests pass in controlled environments, create a manual error replay log (UI or dev tools tab) to capture:
+
+Timestamp of error
+
+Failing function (e.g., scheduleWorkout())
+
+Relevant slot info and API payload
+
+
+
+
+---
+
+Your Next Ask to Replit Should Be:
+
+> “Please prioritise a diagnostic and recovery layer for Smart Scheduling. The core booking flow still fails silently or ends in dead-ends despite test coverage. I’d like to see:
+
+Live sync logs or error feedback under ‘Syncing’
+
+Auto-fallback to other days if today is full
+
+Better recovery UX on 409 error
+
+And optionally: a ‘Dev Tools’ tab to expose calendar API responses and sync state for debugging.”
+
