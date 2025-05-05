@@ -10,6 +10,8 @@ import { Loader2, Clock, Bell, Check, RotateCw } from "lucide-react";
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 
+import LearningModeToggle from './LearningModeToggle';
+
 export default function WorkoutReminderSettings() {
   const [reminderMinutes, setReminderMinutes] = useState(30);
   const [enableRecurring, setEnableRecurring] = useState(false);
@@ -213,6 +215,9 @@ export default function WorkoutReminderSettings() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Learning Mode Toggle */}
+      <LearningModeToggle />
     </div>
   );
 }
