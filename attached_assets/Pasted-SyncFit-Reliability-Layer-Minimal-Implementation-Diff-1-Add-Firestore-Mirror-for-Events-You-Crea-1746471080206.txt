@@ -1,0 +1,96 @@
+SyncFit Reliability Layer — Minimal Implementation Diff
+1️⃣ Add Firestore Mirror for Events You Create
+🔧 Firestore Collection:
+
+users/{userId}/events/{eventId}
+🔹 When You Create an Event in Google Calendar, also do:
+
+import { getFirestore, doc, setDoc } from 'firebase/firestore';
+
+const db = getFirestore();
+const eventRef = doc(db, 'users', userId, 'events', googleEvent.id);
+
+await setDoc(eventRef, {
+  eventId: googleEvent.id,
+  title: googleEvent.summary,
+  startTime: googleEvent.start.dateTime,
+  endTime: googleEvent.end.dateTime,
+  status: 'synced',
+  action: 'create',
+  lastSyncedAt: new Date().toISOString()
+});
+
+🟢 Where to do this: wrap around your existing createEvent() logic.
+2️⃣ Mark Local Events as 'pending' Before Syncing
+
+When you're about to create a calendar event:
+
+await setDoc(eventRef, {
+  eventId: localId, // temporary UUID
+  title: localTitle,
+  startTime,
+  endTime,
+  status: 'pending',
+  action: 'create'
+});
+
+🔁 Later, when sync succeeds, update status to synced.
+3️⃣ Add Retry/Resync Button
+
+This just:
+
+    Refetches recent events from Google Calendar
+
+    Re-attempts any local events marked as pending or error
+
+async function resyncCalendar(userId, accessToken) {
+  const eventDocs = await getDocs(collection(db, 'users', userId, 'events'));
+
+  for (const docSnap of eventDocs.docs) {
+    const event = docSnap.data();
+
+    if (event.status === 'pending' || event.status === 'error') {
+      try {
+        const created = await createEventOnGoogleCalendar(accessToken, event);
+        await setDoc(doc(db, 'users', userId, 'events', created.id), {
+          ...event,
+          eventId: created.id,
+          status: 'synced',
+          lastSyncedAt: new Date().toISOString()
+        });
+      } catch (e) {
+        console.error('Resync failed for event', event.eventId);
+      }
+    }
+  }
+}
+
+🟢 Add a tiny “Resync” button to call this when needed.
+4️⃣ (Optional) Conflict Flag
+
+When you pull Google Calendar events, compare them to your Firestore mirror.
+
+If:
+
+    googleEvent.updated !== firestoreEvent.lastSyncedAt
+
+    OR googleEvent.start/end are different
+
+Then mark the Firestore event as:
+
+status: 'conflict'
+
+🟡 You don’t need to resolve this yet — just flag for future.
+5️⃣ Tiny Sync UI Feedback (Non-Blocking)
+
+Somewhere in the UI (e.g., below Explore Workouts or Calendar):
+
+<SyncStatus status={currentSyncStatus} />
+
+function SyncStatus({ status }) {
+  if (status === 'syncing') return <p>🔁 Syncing…</p>;
+  if (status === 'error') return <p>⚠️ Sync failed — tap to retry</p>;
+  if (status === 'synced') return <p>✅ Synced</p>;
+  return null;
+}
+

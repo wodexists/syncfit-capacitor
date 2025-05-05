@@ -8,6 +8,8 @@ import { formatWorkoutDuration, scheduleWorkout, type Workout } from "@/lib/work
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/useAuth";
+import { createPendingEvent, updateEventAfterSync, markEventSyncError } from "@/lib/calendarSync";
 import { 
   CheckIcon, 
   Clock, 
