@@ -5,7 +5,8 @@ import {
   Workout, InsertWorkout,
   WorkoutCategory, InsertWorkoutCategory,
   ScheduledWorkout, InsertScheduledWorkout,
-  UserPreference, InsertUserPreference
+  UserPreference, InsertUserPreference,
+  SlotStat, InsertSlotStat
 } from '../shared/schema';
 import { IStorage } from './storage';
 import { getFirebaseConfig, getFirebasePrivateKey } from './config';
@@ -385,6 +386,109 @@ export class FirestoreStorage implements IStorage {
     await prefsRef.update(updates);
     
     return updatedPrefs;
+  }
+  
+  // Slot statistics operations
+  async getSlotStat(userId: number, slotId: string): Promise<SlotStat | undefined> {
+    try {
+      const snapshot = await this.db.collection('slot_stats')
+        .where('userId', '==', userId)
+        .where('slotId', '==', slotId)
+        .limit(1)
+        .get();
+      
+      if (snapshot.empty) {
+        return undefined;
+      }
+      
+      const doc = snapshot.docs[0];
+      return { ...doc.data() } as SlotStat;
+    } catch (error) {
+      console.error('Error getting slot stat:', error);
+      return undefined;
+    }
+  }
+  
+  async getSlotStats(userId: number): Promise<SlotStat[]> {
+    try {
+      const snapshot = await this.db.collection('slot_stats')
+        .where('userId', '==', userId)
+        .get();
+      
+      if (snapshot.empty) {
+        return [];
+      }
+      
+      return snapshot.docs.map(doc => ({
+        ...doc.data()
+      })) as SlotStat[];
+    } catch (error) {
+      console.error('Error getting slot stats:', error);
+      return [];
+    }
+  }
+  
+  async createSlotStat(slotStat: InsertSlotStat): Promise<SlotStat> {
+    try {
+      // Check if a slot stat already exists for this user and slot
+      const existingStat = await this.getSlotStat(slotStat.userId, slotStat.slotId);
+      
+      if (existingStat) {
+        // Update the existing stat with incremented values
+        return await this.updateSlotStat(existingStat.id, {
+          totalScheduled: existingStat.totalScheduled + 1,
+          lastUsed: new Date().toISOString()
+        });
+      }
+      
+      // Get the next ID
+      const countSnapshot = await this.db.collection('slot_stats').count().get();
+      const id = countSnapshot.data().count + 1;
+      
+      // Create new slot stat
+      const newSlotStat: SlotStat = {
+        id,
+        userId: slotStat.userId,
+        slotId: slotStat.slotId,
+        totalScheduled: 1,
+        totalCompleted: 0,
+        totalCancelled: 0,
+        successRate: 0,
+        lastUsed: new Date().toISOString()
+      };
+      
+      await this.db.collection('slot_stats').doc(id.toString()).set(newSlotStat);
+      return newSlotStat;
+    } catch (error) {
+      console.error('Error creating slot stat:', error);
+      throw error;
+    }
+  }
+  
+  async updateSlotStat(id: number, updates: Partial<InsertSlotStat>): Promise<SlotStat | undefined> {
+    try {
+      const slotStatRef = this.db.collection('slot_stats').doc(id.toString());
+      const doc = await slotStatRef.get();
+      
+      if (!doc.exists) {
+        return undefined;
+      }
+      
+      const existingStat = { ...doc.data() } as SlotStat;
+      const updatedStat = { ...existingStat, ...updates };
+      
+      // Calculate success rate if we have completions or cancellations
+      if ('totalCompleted' in updates || 'totalCancelled' in updates) {
+        const total = updatedStat.totalCompleted + updatedStat.totalCancelled;
+        updatedStat.successRate = total > 0 ? updatedStat.totalCompleted / total : 0;
+      }
+      
+      await slotStatRef.update(updatedStat);
+      return updatedStat;
+    } catch (error) {
+      console.error('Error updating slot stat:', error);
+      return undefined;
+    }
   }
   
   // Initialize demo data

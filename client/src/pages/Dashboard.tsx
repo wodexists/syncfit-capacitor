@@ -4,6 +4,8 @@ import CalendarIntegration from "@/components/CalendarIntegration";
 import AvailabilityTimeline from "@/components/AvailabilityTimeline";
 import { SyncStatus } from "../components/SyncStatus";
 import { AdminSyncPanel } from "@/components/AdminSyncPanel";
+import LearningModeToggle from "@/components/LearningModeToggle";
+import WorkoutReminderSettings from "@/components/WorkoutReminderSettings";
 
 interface User {
   id: number;
@@ -42,6 +44,18 @@ export default function Dashboard({ user }: DashboardProps) {
         
         {/* Availability Timeline Component */}
         <AvailabilityTimeline />
+      </section>
+      
+      {/* Settings Section */}
+      <section id="workout-settings" className="mb-8">
+        <h2 className="text-2xl font-semibold mb-4">Workout Settings</h2>
+        <div className="grid gap-6 md:grid-cols-2">
+          {/* Learning Mode Toggle Component */}
+          <LearningModeToggle />
+          
+          {/* Workout Reminder Settings Component */}
+          <WorkoutReminderSettings />
+        </div>
       </section>
       
       {/* Admin Sync Panel - Only visible to admins */}
