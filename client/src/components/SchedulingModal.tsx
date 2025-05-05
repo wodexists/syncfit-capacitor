@@ -8,7 +8,7 @@ import { formatWorkoutDuration, scheduleWorkout, type Workout } from "@/lib/work
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "../hooks/useAuth";
 import { createPendingEvent, updateEventAfterSync, markEventSyncError } from "@/lib/calendarSync";
 import { 
   CheckIcon, 
@@ -68,6 +68,9 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
     (workouts && selectedWorkoutId ? 
       workouts.find(w => w.id === selectedWorkoutId) : undefined);
 
+  // Access the authenticated user
+  const { user } = useAuth();
+  
   // Create mutation for scheduling single workouts
   const scheduleMutation = useMutation({
     mutationFn: async ({ 
@@ -81,6 +84,26 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
       endTime: string, 
       workoutName: string 
     }) => {
+      // Track if we created a pending event in Firestore
+      let tempEventId: string | undefined;
+      
+      try {
+        // First create a pending event in Firestore to track reliability
+        if (user?.firebaseUid) {
+          tempEventId = await createPendingEvent(
+            user.firebaseUid,
+            workoutName,
+            startTime,
+            endTime,
+            workoutId
+          );
+          console.log("Created pending event in Firestore:", tempEventId);
+        }
+      } catch (error) {
+        console.error("Error creating pending event in Firestore:", error);
+        // Continue even if Firebase tracking fails - don't block the user
+      }
+      
       // Create the event directly - we're already using pre-verified free time slots
       // from the available slots API, so no need to check for conflicts again
       const conflictCheck = await apiRequest('POST', '/api/calendar/create-event', {
@@ -96,11 +119,39 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
         if (calendarData.error && calendarData.error.includes("Google Calendar API")) {
           // Log the technical error for developers
           console.error("Calendar API error:", calendarData.error);
+          
+          // Mark event as error in Firestore if we created a pending event
+          if (tempEventId && user?.firebaseUid) {
+            try {
+              await markEventSyncError(
+                user.firebaseUid, 
+                tempEventId,
+                "Calendar API error: " + calendarData.error
+              );
+            } catch (e) {
+              console.error("Error marking event sync error:", e);
+            }
+          }
+          
           // Show a user-friendly message
           throw new Error("We're having trouble connecting to your calendar right now. Please try again in a few minutes.");
         } else if (calendarData.message && calendarData.message.includes("calendar has been updated")) {
           // Calendar has changed since slots were fetched - refresh the slots automatically
           console.log("Calendar changed, refreshing time slots...");
+          
+          // Mark event as error in Firestore if we created a pending event
+          if (tempEventId && user?.firebaseUid) {
+            try {
+              await markEventSyncError(
+                user.firebaseUid, 
+                tempEventId,
+                "Calendar changed since loading: " + calendarData.message
+              );
+            } catch (e) {
+              console.error("Error marking event sync error:", e);
+            }
+          }
+          
           const freshSlots = await findAvailableTimeSlots(new Date(), activeWorkout.duration);
           setAvailableSlots(freshSlots);
           
@@ -121,7 +172,37 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
           return { scheduledWorkout: null, calendarEvent: null };
         } else {
           // Other error
+          
+          // Mark event as error in Firestore if we created a pending event
+          if (tempEventId && user?.firebaseUid) {
+            try {
+              await markEventSyncError(
+                user.firebaseUid, 
+                tempEventId,
+                calendarData.message || "Unknown error during calendar sync"
+              );
+            } catch (e) {
+              console.error("Error marking event sync error:", e);
+            }
+          }
+          
           throw new Error(calendarData.message || "Unable to schedule workout. Please try again.");
+        }
+      }
+      
+      // Update the Firestore event with the Google Calendar event ID
+      if (tempEventId && user?.firebaseUid && calendarData.eventId) {
+        try {
+          await updateEventAfterSync(
+            user.firebaseUid,
+            tempEventId,
+            calendarData.eventId,
+            calendarData.htmlLink
+          );
+          console.log("Updated event in Firestore after successful sync:", calendarData.eventId);
+        } catch (error) {
+          console.error("Error updating event after sync:", error);
+          // Continue even if update fails - we'll have a retry mechanism
         }
       }
       

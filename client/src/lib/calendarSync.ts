@@ -1,8 +1,11 @@
-import { db } from "./firebase";
-import { collection, doc, setDoc, getDocs, query, where, updateDoc, getDoc } from "firebase/firestore";
+import { getFirestore, collection, doc, setDoc, getDocs, query, where, updateDoc, getDoc } from "firebase/firestore";
 import { v4 as uuidv4 } from 'uuid';
 import { apiRequest } from "./queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { auth } from "./firebase";
+
+// Initialize Firestore
+const db = getFirestore();
 
 // Event sync status types
 export type EventSyncStatus = 'pending' | 'synced' | 'error' | 'conflict';

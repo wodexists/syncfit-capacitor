@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { checkPendingEvents, useSyncStatus } from '@/lib/calendarSync';
 import { Loader2, RefreshCw, CheckCircle2, AlertTriangle } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '../hooks/useAuth';
 
 export type SyncStatusType = 'idle' | 'syncing' | 'synced' | 'error';
 

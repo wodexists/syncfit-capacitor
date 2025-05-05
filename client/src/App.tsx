@@ -14,21 +14,29 @@ import Navigation from "@/components/Navigation";
 import CalendarSelector from "@/components/CalendarSelector";
 import WorkoutReminderSettings from "@/components/WorkoutReminderSettings";
 import { useQuery } from "@tanstack/react-query";
-import { useState, useEffect } from "react";
+import { useState, useEffect, createContext } from "react";
 
 // Auth context
-type User = {
+export type User = {
   id: number;
   email: string;
   username: string;
   profilePicture?: string;
+  firebaseUid?: string;
 };
 
-type AuthContextType = {
+export type AuthContextType = {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
 };
+
+// Create the context with a default value
+export const AuthContext = createContext<AuthContextType>({
+  user: null,
+  isAuthenticated: false,
+  isLoading: true
+});
 
 function App() {
   const [location] = useLocation();
@@ -70,14 +78,15 @@ function App() {
   const isLoginPage = location === "/login";
 
   return (
-    <TooltipProvider>
-      <ToastProvider>
-        <div className="min-h-screen flex flex-col">
-          {!isLoginPage && authContext.isAuthenticated && <Header user={authContext.user} />}
-          {!isLoginPage && authContext.isAuthenticated && <Navigation currentPath={location} />}
-          
-          <main className="flex-grow">
-            <Switch>
+    <AuthContext.Provider value={authContext}>
+      <TooltipProvider>
+        <ToastProvider>
+          <div className="min-h-screen flex flex-col">
+            {!isLoginPage && authContext.isAuthenticated && <Header user={authContext.user} />}
+            {!isLoginPage && authContext.isAuthenticated && <Navigation currentPath={location} />}
+            
+            <main className="flex-grow">
+              <Switch>
               <Route path="/login" component={Login} />
               
               {/* Protected Routes */}
@@ -128,6 +137,7 @@ function App() {
         </div>
       </ToastProvider>
     </TooltipProvider>
+    </AuthContext.Provider>
   );
 }
 
