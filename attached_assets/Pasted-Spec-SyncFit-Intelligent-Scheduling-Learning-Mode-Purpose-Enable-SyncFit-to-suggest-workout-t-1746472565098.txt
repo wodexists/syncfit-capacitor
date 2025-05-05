@@ -1,0 +1,136 @@
+Spec: SyncFit Intelligent Scheduling & Learning Mode
+🧠 Purpose
+
+Enable SyncFit to suggest workout times that reflect user habits — not just free space — while giving users clear, respectful control via a Learning Mode toggle.
+
+This system passively learns from user behaviour and subtly enhances slot recommendations without adding cognitive load.
+🔄 Feature Overview
+🧠 Learning Mode Toggle
+
+A user-facing toggle that controls whether SyncFit:
+
+    Tracks usage patterns (slotStats)
+
+    Applies smart scoring to rank time slots
+
+🤖 Intelligent Scheduling Engine
+
+Ranks available time slots based on:
+
+    Historical preference (slotStats)
+
+    Meeting adjacency (fatigue risk)
+
+    Time-of-day and weekday behaviour patterns
+
+⚙️ System Components
+🔧 1. Firestore: users/{userId}/preferences
+
+{
+  "learningEnabled": true,
+  "lastLearningChange": "2025-05-05T21:00:00Z"
+}
+
+Used to toggle learning mode logic in the client and optionally in backend logic.
+📊 2. Firestore: users/{userId}/slotStats/{slotId}
+
+{
+  "slotId": "tue_07",
+  "totalScheduled": 3,
+  "totalCancelled": 1,
+  "successRate": 0.75,
+  "lastUsed": "2025-05-02T07:00:00Z"
+}
+
+Used to:
+
+    Score slots during suggestion logic
+
+    Show optional learning summaries later
+
+🧮 3. Slot Scoring Utility (scoreSlot())
+
+Input:
+
+    slotId (e.g. thu_18)
+
+    slotStats (from Firestore)
+
+    hasAdjacentMeetings (boolean)
+
+Output:
+
+    Integer score (higher = more preferred)
+
+score = (scheduledCount) + (successRate * 5) - (adjacentMeetings ? 2 : 0) - (cancelled > 2 ? 3 : 0)
+
+📋 4. Learning Mode Toggle UI
+
+Location:
+
+    Settings screen
+
+Toggle:
+
+    Learning Mode
+    “Let SyncFit learn your preferred times to suggest better workouts.”
+
+Options:
+
+    ON (default)
+
+    OFF
+
+📥 5. When to Write to slotStats
+
+Only write when:
+
+    preferences.learningEnabled === true
+
+    A workout is created or deleted
+
+    Use the slot's slotId (e.g. mon_07) as key
+
+📤 6. When to Use Intelligent Suggestions
+
+Use slotStats + scoreSlot() to rank suggestions only when:
+
+    preferences.learningEnabled === true
+
+    The user is requesting slot suggestions
+
+Else:
+
+    Show unranked availability
+
+✅ User-Facing Behaviour Summary
+State	Behaviour
+Learning ON	SyncFit ranks slots, shows ⭐ recommendations, and updates slotStats
+Learning OFF	SyncFit shows only available slots, no ranking or pattern tracking
+Toggle change	Resets sync logic instantly; no stored data is deleted automatically
+Future plan (opt-in)	Add "Clear Learning History" if needed
+💬 Microcopy Examples
+Toggle Label
+
+    Learning Mode
+    “Let SyncFit learn your workout rhythm to suggest better times.”
+
+Slot UI
+
+    ⭐ Recommended
+    Based on your recent habits.
+
+🔐 Security / Privacy Considerations
+
+    Do not write slotStats if learningEnabled === false
+
+    Do not expose other users' slotStats data
+
+    SlotStats are local to the user and not shared across accounts/devices unless authenticated
+
+🧪 Testing Plan
+Scenario	What to Validate
+Learning toggle ON	slotStats written, slots ranked
+Learning toggle OFF	no writes to slotStats, raw slots shown
+Toggle toggled rapidly	Does not break slot fetching or cause duplicate events
+Retry logic respects Learning	Retry events update slotStats only if learning is enabled

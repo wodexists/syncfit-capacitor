@@ -88,6 +88,8 @@ export const userPreferences = pgTable("user_preferences", {
   reminderMinutes: integer("reminder_minutes"), // Minutes before workout to send reminder
   enableRecurring: boolean("enable_recurring").default(false), // Enable recurring workouts
   recurringPattern: text("recurring_pattern"), // JSON string of recurring workout settings
+  learningEnabled: boolean("learning_enabled").default(true), // Enable intelligent scheduling learning mode
+  lastLearningChange: timestamp("last_learning_change"), // Last time learning mode was toggled
 });
 
 export const insertUserPreferencesSchema = createInsertSchema(userPreferences).pick({
@@ -99,6 +101,8 @@ export const insertUserPreferencesSchema = createInsertSchema(userPreferences).p
   reminderMinutes: true,
   enableRecurring: true,
   recurringPattern: true,
+  learningEnabled: true,
+  lastLearningChange: true,
 });
 
 // Export types
@@ -116,3 +120,28 @@ export type InsertScheduledWorkout = z.infer<typeof insertScheduledWorkoutSchema
 
 export type UserPreference = typeof userPreferences.$inferSelect;
 export type InsertUserPreference = z.infer<typeof insertUserPreferencesSchema>;
+
+// Slot statistics for intelligent scheduling
+export const slotStats = pgTable("slot_stats", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  slotId: text("slot_id").notNull(), // Format: day_hour (e.g., mon_07)
+  totalScheduled: integer("total_scheduled").default(0),
+  totalCancelled: integer("total_cancelled").default(0),
+  totalCompleted: integer("total_completed").default(0),
+  successRate: integer("success_rate").default(0), // 0-100 percentage
+  lastUsed: timestamp("last_used"),
+});
+
+export const insertSlotStatsSchema = createInsertSchema(slotStats).pick({
+  userId: true,
+  slotId: true,
+  totalScheduled: true,
+  totalCancelled: true,
+  totalCompleted: true,
+  successRate: true,
+  lastUsed: true,
+});
+
+export type SlotStat = typeof slotStats.$inferSelect;
+export type InsertSlotStat = z.infer<typeof insertSlotStatsSchema>;

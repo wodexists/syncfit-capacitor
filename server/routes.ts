@@ -2,7 +2,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
-import { insertUserSchema, insertScheduledWorkoutSchema, insertUserPreferencesSchema } from "@shared/schema";
+import { insertUserSchema, insertScheduledWorkoutSchema, insertUserPreferencesSchema, insertSlotStatsSchema } from "@shared/schema";
 import session from "express-session";
 import MemoryStore from "memorystore";
 import * as GoogleCalendarService from './services/googleCalendar';
