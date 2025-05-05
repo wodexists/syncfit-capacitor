@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Check, RefreshCw, Info, X, AlertCircle, AlertTriangle, RotateCw } from "lucide-react";
+import { Check, RefreshCw, Info, X, AlertCircle, AlertTriangle, RotateCw, Calendar } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Card } from "@/components/ui/card";
 import { useAuth } from "@/hooks/useAuth";
@@ -23,8 +23,8 @@ export function SyncStatus() {
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
-  const [initialLoad, setInitialLoad] = useState(true); // Track first load
-  const [isAuthIssue, setIsAuthIssue] = useState(false); // Track if we're having auth issues
+  const [initialLoad, setInitialLoad] = useState(true); 
+  const [isAuthIssue, setIsAuthIssue] = useState(false);
   const [lastChecked, setLastChecked] = useState<Date | null>(null);
   const [syncCounts, setSyncCounts] = useState<SyncCounts>({
     total: 0,
@@ -40,6 +40,8 @@ export function SyncStatus() {
   const [retrying, setRetrying] = useState(false);
   const [connectivityIssue, setConnectivityIssue] = useState(false);
   const [recoveryAttempts, setRecoveryAttempts] = useState(0);
+  // Developer diagnostics panel state
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
 
   const fetchSyncStatus = async () => {
     if (user?.firebaseUid) {
@@ -47,29 +49,46 @@ export function SyncStatus() {
         setLoading(true);
         setConnectivityIssue(false);
         
-        // Check if we have connectivity to Google APIs
+        console.log("SyncStatus: Starting Google Calendar API check...");
+        
+        // Check connectivity to Google APIs
         try {
-          const response = await fetch('/api/calendar/calendars');
+          // Force a request to Google Calendar API to ensure connectivity
+          console.log("SyncStatus: Requesting calendar list...");
+          const response = await fetch('/api/calendar/calendars', {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'Cache-Control': 'no-cache, no-store'
+            },
+            credentials: 'same-origin'
+          });
+          
+          console.log(`SyncStatus: Calendar API response status: ${response.status}`);
+          
           if (!response.ok) {
             if (response.status === 401 || response.status === 403) {
-              // This indicates an authentication or permission issue
+              // Authentication or permission issue
               console.error("Calendar API access issue - Auth problem detected");
               setIsAuthIssue(true);
               
-              // Make a more aggressive attempt to fix if we've already tried multiple times
+              // More aggressive fix if multiple attempts failed
               if (recoveryAttempts > 2) {
                 console.log("Multiple recovery attempts failed, trying to refresh user session");
-                // Forcefully clear and reset session here if implemented
               }
               
               setRecoveryAttempts(prev => prev + 1);
             } else {
-              // This is more likely a network or general API issue
+              // Network or general API issue
               console.error(`Calendar API access issue - HTTP ${response.status}`);
               setConnectivityIssue(true);
             }
           } else {
-            // If we get here, we have API access, so reset error states
+            // We have API access, reset error states
+            console.log("SyncStatus: Calendar API access confirmed!");
+            const data = await response.json();
+            console.log(`SyncStatus: Retrieved ${data.length || 0} calendars`);
+            
             setIsAuthIssue(false);
             setConnectivityIssue(false);
             setRecoveryAttempts(0);
@@ -82,13 +101,11 @@ export function SyncStatus() {
         // Update last checked timestamp
         setLastChecked(new Date());
         
-        // Still try to get event counts even if we had API issues
+        // Still try to get event counts even if API issues
         const counts = await getEventStatusCounts(user.firebaseUid);
         setSyncCounts(counts);
         
-        // If we're past initial load and still have no events,
-        // we might be in a "stalled state" which happens when Firebase
-        // auth works but we don't have calendar access
+        // Check for stalled state
         if (!initialLoad && counts.total === 0 && isAuthIssue) {
           console.log("Possible stalled state - authenticated but no calendar events found");
         }
@@ -105,10 +122,9 @@ export function SyncStatus() {
     if (isAuthenticated && user?.firebaseUid) {
       fetchSyncStatus();
       
-      // Set up an interval to auto-refresh the sync status every 30 seconds
+      // Auto-refresh every 30 seconds
       const intervalId = setInterval(fetchSyncStatus, 30000);
       
-      // Clear the interval when the component unmounts
       return () => clearInterval(intervalId);
     } else {
       // Reset state when not authenticated
@@ -146,7 +162,7 @@ export function SyncStatus() {
         });
       }
       
-      // Refresh the counts after retrying
+      // Refresh counts after retrying
       await fetchSyncStatus();
     } catch (error) {
       console.error("Error retrying events:", error);
@@ -159,17 +175,56 @@ export function SyncStatus() {
       setRetrying(false);
     }
   };
+  
+  const handleForceConnectionCheck = async () => {
+    try {
+      toast({
+        title: "Testing Calendar Connection",
+        description: "Checking connectivity to Google Calendar...",
+        variant: "default",
+      });
+      
+      // Force a direct connection test to the calendar API
+      console.log("Forcing connection check to Google Calendar API...");
+      const response = await fetch('/api/calendar/calendars', {
+        method: 'GET',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        },
+        credentials: 'same-origin'
+      });
+      
+      if (response.ok) {
+        const calendars = await response.json();
+        console.log(`Connection successful. Retrieved ${calendars.length} calendars.`);
+        toast({
+          title: "Connection test successful",
+          description: `Successfully connected to Google Calendar. Found ${calendars.length} calendars.`,
+          variant: "default",
+        });
+      } else {
+        console.error(`Connection test failed: ${response.status} ${response.statusText}`);
+        toast({
+          title: "Connection test failed",
+          description: `Error: ${response.status} ${response.statusText}`,
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Connection test error:", error);
+      toast({
+        title: "Connection test error",
+        description: "Failed to connect to Google Calendar API",
+        variant: "destructive",
+      });
+    }
+  };
 
   // Don't show the component if not authenticated
   if (!isAuthenticated || !user) {
     return null;
   }
-
-  // Always show the sync status for now, even when there are no events
-  // This helps with debugging and provides better user feedback
-  // if (!loading && syncCounts.total === 0) {
-  //   return null;
-  // }
 
   // Calculate progress percentage
   const syncedPercentage = syncCounts.total > 0 
@@ -179,6 +234,7 @@ export function SyncStatus() {
   return (
     <Card className="mb-6 p-4 relative overflow-hidden">
       <div className="flex flex-col">
+        {/* Header */}
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center space-x-2">
             <h3 className="text-base font-medium">Calendar Sync Status</h3>
@@ -218,6 +274,7 @@ export function SyncStatus() {
           </div>
         </div>
         
+        {/* Sync status summary */}
         <div className="flex items-center justify-between mb-1">
           <span className="text-sm font-medium flex items-center">
             {loading ? (
@@ -249,6 +306,7 @@ export function SyncStatus() {
           )}
         </div>
         
+        {/* Progress bar */}
         <Progress 
           value={syncedPercentage} 
           className={`h-2 ${
@@ -258,7 +316,7 @@ export function SyncStatus() {
           }`} 
         />
         
-        {/* Show a mini diagnostic log when syncing is in progress */}
+        {/* Syncing in progress info */}
         {loading && (
           <div className="mt-2 text-xs bg-amber-50 border border-amber-200 rounded-md p-2">
             <div className="flex items-center text-amber-800 font-medium mb-1">
@@ -273,7 +331,7 @@ export function SyncStatus() {
           </div>
         )}
         
-        {/* Show connectivity issues */}
+        {/* Connectivity issues */}
         {!loading && connectivityIssue && (
           <div className="mt-2 text-xs bg-amber-50 border border-amber-200 rounded-md p-2">
             <div className="flex items-center text-amber-800 font-medium mb-1">
@@ -308,7 +366,7 @@ export function SyncStatus() {
           </div>
         )}
         
-        {/* Show auth issues */}
+        {/* Authentication issues */}
         {!loading && isAuthIssue && (
           <div className="mt-2 text-xs bg-red-50 border border-red-200 rounded-md p-2">
             <div className="flex items-center text-red-800 font-medium mb-1">
@@ -333,7 +391,7 @@ export function SyncStatus() {
           </div>
         )}
         
-        {/* Last Synced Timestamp */}
+        {/* Last synced timestamp */}
         {syncCounts.lastSyncedAt && (
           <div className="mt-2 text-xs text-muted-foreground flex items-center">
             <span>Last synced at {format(syncCounts.lastSyncedAt, 'MMM d, h:mm a')}</span>
@@ -354,6 +412,7 @@ export function SyncStatus() {
           </div>
         )}
         
+        {/* Expanded detailed view */}
         {expanded && !loading && (
           <div className="mt-4 grid grid-cols-1 sm:grid-cols-4 gap-3">
             <div className="flex items-center justify-between border rounded-md p-2 bg-muted/50">
@@ -398,6 +457,7 @@ export function SyncStatus() {
           </div>
         )}
         
+        {/* Error details when expanded */}
         {expanded && (syncCounts.error > 0 || syncCounts.conflict > 0) && (
           <div className="mt-3">
             {syncCounts.error > 0 && (
@@ -493,24 +553,21 @@ export function SyncStatus() {
           </div>
         )}
         
-        {/* Developer Diagnostics Panel (only shown in expanded mode) */}
-        {expanded && (
-          <div className="mt-3 border-t pt-3">
-            <button 
-              onClick={(e) => {
-                e.preventDefault();
-                const elem = document.getElementById('syncfit-diagnostics');
-                if (elem) {
-                  elem.style.display = elem.style.display === 'none' ? 'block' : 'none';
-                }
-              }}
-              className="text-xs flex items-center text-slate-600 hover:text-slate-900"
-            >
-              <Info className="h-3.5 w-3.5 mr-1" />
-              Toggle Developer Diagnostics
-            </button>
-            
-            <div id="syncfit-diagnostics" className="mt-2 bg-slate-50 border border-slate-200 rounded-md p-2 text-xs font-mono hidden">
+        {/* Developer diagnostics panel */}
+        <div className="mt-3 border-t pt-3">
+          <button 
+            onClick={(e) => {
+              e.preventDefault();
+              setShowDiagnostics(!showDiagnostics);
+            }}
+            className="text-xs flex items-center text-slate-600 hover:text-slate-900"
+          >
+            <Info className="h-3.5 w-3.5 mr-1" />
+            Toggle Developer Diagnostics
+          </button>
+          
+          {showDiagnostics && (
+            <div className="mt-2 bg-slate-50 border border-slate-200 rounded-md p-2 text-xs font-mono">
               <p className="font-medium text-slate-700 mb-1">Sync State Diagnostic Log:</p>
               <div className="space-y-0.5 text-slate-600 max-h-64 overflow-y-auto">
                 <p>Last API Call: {lastChecked?.toISOString() || 'Never'}</p>
@@ -534,9 +591,32 @@ export function SyncStatus() {
                 }</p>
                 <p>Auto-refresh Active: {isAuthenticated ? 'Yes (30s)' : 'No'}</p>
               </div>
+              
+              <div className="mt-3 flex items-center gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-7 text-xs"
+                  onClick={handleRefresh}
+                  disabled={refreshing}
+                >
+                  <RefreshCw className={`h-3 w-3 mr-1 ${refreshing ? "animate-spin" : ""}`} />
+                  Refresh All Data
+                </Button>
+                
+                <Button 
+                  variant="secondary" 
+                  size="sm" 
+                  className="h-7 text-xs"
+                  onClick={handleForceConnectionCheck}
+                >
+                  <Calendar className="h-3 w-3 mr-1" />
+                  Force Connection Check
+                </Button>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </Card>
   );
