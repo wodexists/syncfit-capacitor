@@ -1,32 +1,39 @@
 import { useEffect, useState } from "react";
-import { Check, RefreshCw, Info, X, AlertCircle } from "lucide-react";
+import { Check, RefreshCw, Info, X, AlertCircle, AlertTriangle, RotateCw } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Card } from "@/components/ui/card";
 import { useAuth } from "@/hooks/useAuth";
-import { getEventStatusCounts } from "@/lib/calendarSync";
+import { getEventStatusCounts, retryFailedEvents } from "@/lib/calendarSync";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { format } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
 
 interface SyncCounts {
   total: number;
   pending: number;
   synced: number;
   error: number;
+  conflict: number;
   success: number;
+  lastSyncedAt?: Date;
 }
 
 export function SyncStatus() {
   const { user, isAuthenticated } = useAuth();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [syncCounts, setSyncCounts] = useState<SyncCounts>({
     total: 0,
     pending: 0,
     synced: 0,
     error: 0,
+    conflict: 0,
     success: 0
   });
   const [expanded, setExpanded] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [retrying, setRetrying] = useState(false);
 
   const fetchSyncStatus = async () => {
     if (user?.firebaseUid) {
@@ -45,6 +52,12 @@ export function SyncStatus() {
   useEffect(() => {
     if (isAuthenticated && user?.firebaseUid) {
       fetchSyncStatus();
+      
+      // Set up an interval to auto-refresh the sync status every 30 seconds
+      const intervalId = setInterval(fetchSyncStatus, 30000);
+      
+      // Clear the interval when the component unmounts
+      return () => clearInterval(intervalId);
     }
   }, [isAuthenticated, user?.firebaseUid]);
 
@@ -52,6 +65,41 @@ export function SyncStatus() {
     setRefreshing(true);
     await fetchSyncStatus();
     setRefreshing(false);
+  };
+  
+  const handleRetry = async () => {
+    if (!user?.firebaseUid) return;
+    
+    setRetrying(true);
+    try {
+      const retryCount = await retryFailedEvents(user.firebaseUid);
+      
+      if (retryCount > 0) {
+        toast({
+          title: "Retry successful",
+          description: `Successfully retried ${retryCount} event${retryCount > 1 ? 's' : ''}.`,
+          variant: "default",
+        });
+      } else {
+        toast({
+          title: "No events retried",
+          description: "No events were eligible for retry or all retries failed.",
+          variant: "default",
+        });
+      }
+      
+      // Refresh the counts after retrying
+      await fetchSyncStatus();
+    } catch (error) {
+      console.error("Error retrying events:", error);
+      toast({
+        title: "Retry failed",
+        description: "There was a problem retrying the failed events. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setRetrying(false);
+    }
   };
 
   // Don't show the component if not authenticated
