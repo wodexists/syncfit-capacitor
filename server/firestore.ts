@@ -389,20 +389,37 @@ export class FirestoreStorage implements IStorage {
   }
   
   // Slot statistics operations
-  async getSlotStat(userId: number, slotId: string): Promise<SlotStat | undefined> {
+  // Implementation of overloaded method
+  async getSlotStat(arg1: number, arg2?: string): Promise<SlotStat | undefined> {
     try {
-      const snapshot = await this.db.collection('slot_stats')
-        .where('userId', '==', userId)
-        .where('slotId', '==', slotId)
-        .limit(1)
-        .get();
-      
-      if (snapshot.empty) {
-        return undefined;
+      // If second arg is provided, we're looking up by userId and slotId
+      if (arg2 !== undefined) {
+        const userId = arg1;
+        const slotId = arg2;
+        
+        const snapshot = await this.db.collection('slot_stats')
+          .where('userId', '==', userId)
+          .where('slotId', '==', slotId)
+          .limit(1)
+          .get();
+        
+        if (snapshot.empty) {
+          return undefined;
+        }
+        
+        const doc = snapshot.docs[0];
+        return { ...doc.data() } as SlotStat;
+      } else {
+        // Otherwise, we're looking up by ID
+        const id = arg1;
+        const doc = await this.db.collection('slot_stats').doc(id.toString()).get();
+        
+        if (!doc.exists) {
+          return undefined;
+        }
+        
+        return { ...doc.data() } as SlotStat;
       }
-      
-      const doc = snapshot.docs[0];
-      return { ...doc.data() } as SlotStat;
     } catch (error) {
       console.error('Error getting slot stat:', error);
       return undefined;
@@ -519,6 +536,23 @@ export class FirestoreStorage implements IStorage {
     } catch (error) {
       console.error('Error updating slot stat:', error);
       return undefined;
+    }
+  }
+  
+  async deleteSlotStat(id: number): Promise<boolean> {
+    try {
+      const slotStatRef = this.db.collection('slot_stats').doc(id.toString());
+      const doc = await slotStatRef.get();
+      
+      if (!doc.exists) {
+        return false;
+      }
+      
+      await slotStatRef.delete();
+      return true;
+    } catch (error) {
+      console.error('Error deleting slot stat:', error);
+      return false;
     }
   }
   

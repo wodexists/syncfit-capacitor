@@ -1209,7 +1209,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Get the slot stat to verify it belongs to this user
-      const slotStat = await storage.getSlotStat(statId);
+      const slotStat = await storage.getSlotStat(statId, undefined);
       
       if (!slotStat) {
         return res.status(404).json({

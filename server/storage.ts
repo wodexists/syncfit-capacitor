@@ -387,16 +387,29 @@ export class MemStorage implements IStorage {
   }
   
   // Slot statistics operations
-  async getSlotStat(userId: number, slotId: string): Promise<SlotStat | undefined> {
-    return Array.from(this.slotStats.values()).find(
-      stat => stat.userId === userId && stat.slotId === slotId
-    );
+  // Implementation of the overloaded method
+  async getSlotStat(arg1: number, arg2?: string): Promise<SlotStat | undefined> {
+    // If second arg is provided, we're looking up by userId and slotId
+    if (arg2 !== undefined) {
+      const userId = arg1;
+      const slotId = arg2;
+      return Array.from(this.slotStats.values()).find(
+        stat => stat.userId === userId && stat.slotId === slotId
+      );
+    }
+    
+    // Otherwise, we're looking up by ID directly
+    return this.slotStats.get(arg1);
   }
 
   async getSlotStats(userId: number): Promise<SlotStat[]> {
     return Array.from(this.slotStats.values()).filter(
       stat => stat.userId === userId
     );
+  }
+  
+  async deleteSlotStat(id: number): Promise<boolean> {
+    return this.slotStats.delete(id);
   }
 
   async createSlotStat(slotStat: InsertSlotStat): Promise<SlotStat> {
