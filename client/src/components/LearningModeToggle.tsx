@@ -29,9 +29,7 @@ export default function LearningModeToggle() {
     mutationFn: (enabled: boolean) => {
       return apiRequest('POST', '/api/learning-mode', { enabled });
     },
-    onSuccess: (data) => {
-      // Parse the response
-      const response = data.json();
+    onSuccess: () => {
       
       toast({
         title: "Learning mode preference saved",
