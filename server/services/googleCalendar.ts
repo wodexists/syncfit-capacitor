@@ -434,12 +434,35 @@ export async function createAvailabilityTimeline(
 export async function getCalendarList(
   accessToken: string
 ): Promise<CalendarListItem[]> {
-  const calendar = getCalendarClient(accessToken);
+  // Input validation with detailed logging
+  if (!accessToken || accessToken.trim() === '') {
+    console.error('getCalendarList called with empty access token');
+    throw new Error('Invalid access token provided');
+  }
+  
+  console.log('Getting calendar list with access token (first 10 chars): ' + accessToken.substring(0, 10) + '...');
+  
+  // Check if the token looks valid (rough check)
+  if (accessToken.length < 20) {
+    console.warn('Access token appears suspiciously short:', accessToken.length, 'chars');
+  }
   
   try {
-    const response = await calendar.calendarList.list();
+    // Get calendar client with the token
+    const calendar = getCalendarClient(accessToken);
+    console.log('Successfully created calendar client, now fetching calendar list...');
+    
+    // Make the API request with more parameters for better results
+    const response = await calendar.calendarList.list({
+      maxResults: 100, // Ensure we get all calendars
+      showDeleted: false,
+      showHidden: true
+    });
+    
+    console.log(`Successfully retrieved calendar list with ${response.data.items?.length || 0} calendars`);
     
     if (!response.data.items || response.data.items.length === 0) {
+      console.log('No calendars found for this user');
       return [];
     }
     
@@ -461,8 +484,36 @@ export async function getCalendarList(
         foregroundColor
       };
     });
-  } catch (error) {
-    console.error('Error getting calendar list:', error);
+  } catch (error: any) {
+    // Enhanced error handling with detailed diagnostic information
+    console.error('Error getting calendar list:');
+    if (error.response) {
+      // The request was made and the server responded with a status code
+      // that falls out of the range of 2xx
+      console.error('Google API error response:');
+      console.error('Status:', error.response.status);
+      console.error('Data:', JSON.stringify(error.response.data || {}));
+      console.error('Headers:', JSON.stringify(error.response.headers || {}));
+      
+      if (error.response.status === 401) {
+        console.error('Authentication error - token may be expired or invalid');
+        throw new Error('Google Calendar authentication failed: expired or invalid token');
+      } else if (error.response.status === 403) {
+        console.error('Authorization error - insufficient permissions');
+        throw new Error('Google Calendar permission denied: insufficient calendar access');
+      }
+    } else if (error.request) {
+      // The request was made but no response was received
+      console.error('No response received from Google API');
+      console.error('Request:', error.request);
+      throw new Error('Google Calendar API did not respond: network or connectivity issue');
+    } else {
+      // Something happened in setting up the request that triggered an Error
+      console.error('Error setting up request:', error.message);
+      throw new Error(`Google Calendar API request setup error: ${error.message}`);
+    }
+    
+    console.error('Error config:', error.config);
     throw error;
   }
 }

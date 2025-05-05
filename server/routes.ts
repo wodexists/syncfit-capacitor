@@ -1006,15 +1006,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get available calendars
   app.get('/api/calendar/calendars', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      console.log('Calendar API: GET /api/calendar/calendars called');
       const userId = req.session.userId as number;
+      console.log(`Calendar API: Looking up user ID: ${userId}`);
+      
       const user = await storage.getUser(userId);
       
-      if (!user || !user.googleAccessToken) {
-        return res.status(400).json({ message: 'Google access token not available' });
+      if (!user) {
+        console.error(`Calendar API: User with ID ${userId} not found`);
+        return res.status(404).json({ message: 'User not found' });
       }
       
-      // Get the list of calendars
+      if (!user.googleAccessToken) {
+        console.error(`Calendar API: User ${userId} has no Google access token`);
+        return res.status(400).json({ 
+          message: 'Google access token not available',
+          details: 'Your Google account may not be properly connected. Try logging out and back in.'
+        });
+      }
+      
+      // Log token info (partial for security)
+      console.log(`Calendar API: User has access token (first 10 chars): ${user.googleAccessToken.substring(0, 10)}...`);
+      
+      // Make the API call
       const calendars = await GoogleCalendarService.getCalendarList(user.googleAccessToken);
+      console.log(`Calendar API: Successfully retrieved ${calendars.length} calendars`);
       
       // Get user preferences to mark selected calendars
       const userPrefs = await storage.getUserPreferences(userId);
@@ -1025,10 +1041,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           selectedCalendarIds = JSON.parse(userPrefs.selectedCalendars);
         } catch (e) {
           console.error('Error parsing selected calendars:', e);
+          selectedCalendarIds = [];
         }
       }
       
-      // Mark selected calendars based on user preferences
+      // Mark selected calendars
       const calendarList = calendars.map(cal => ({
         ...cal,
         selected: cal.primary || selectedCalendarIds.includes(cal.id)
@@ -1036,10 +1053,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.status(200).json(calendarList);
     } catch (error) {
-      // Log the detailed error for developers
       console.error('Error getting calendar list:', error);
-      // Return a user-friendly message without exposing API details
-      res.status(500).json({ message: 'Failed to get your calendar list. Please try again in a few minutes.' });
+      res.status(500).json({ message: 'Failed to get your calendar list. Please try again.' });
     }
   });
   
