@@ -6,6 +6,8 @@ export interface TimeSlot {
   label?: string;
   isRecommended?: boolean;
   score?: number;
+  day?: string; // Day of the slot (e.g., "Today", "Tomorrow", "Wednesday")
+  daysFromNow?: number; // How many days from today (0 = today, 1 = tomorrow, etc.)
 }
 
 export interface TimeSlotResponse {
@@ -33,15 +35,18 @@ export interface AvailabilitySlot {
  * Find available time slots for workouts based on Google Calendar data
  * @param date Optional date to find slots for (defaults to today)
  * @param durationMinutes Optional workout duration in minutes (defaults to 30)
+ * @param timeHorizon Optional number of days to search (defaults to user preference or 1)
  */
 export async function findAvailableTimeSlots(
   date: Date = new Date(),
-  durationMinutes: number = 30
+  durationMinutes: number = 30,
+  timeHorizon?: number
 ): Promise<TimeSlotResponse> {
   try {
     const response = await apiRequest('POST', '/api/calendar/available-slots', {
       date: date.toISOString(),
-      durationMinutes
+      durationMinutes,
+      timeHorizon
     });
     const data = await response.json();
     
@@ -122,4 +127,37 @@ export function formatDateTimeRange(start: Date, end: Date): string {
   
   const timeStr = formatTimeRange(start, end);
   return `${dateStr}, ${timeStr}`;
+}
+
+/**
+ * Get the day label for a date relative to today
+ */
+export function getDayLabel(date: Date): string {
+  const today = new Date();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  
+  const isToday = date.toDateString() === today.toDateString();
+  const isTomorrow = date.toDateString() === tomorrow.toDateString();
+  
+  if (isToday) {
+    return 'Today';
+  } else if (isTomorrow) {
+    return 'Tomorrow';
+  } else {
+    return date.toLocaleDateString(undefined, { weekday: 'long' });
+  }
+}
+
+/**
+ * Calculate days from now for a date
+ */
+export function getDaysFromNow(date: Date): number {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const targetDate = new Date(date);
+  targetDate.setHours(0, 0, 0, 0);
+  
+  return Math.round((targetDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 }

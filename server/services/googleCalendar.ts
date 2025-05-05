@@ -137,15 +137,100 @@ export async function getEventsForDay(
 }
 
 /**
- * Find available time slots for scheduling workouts
+ * Find available time slots for scheduling workouts with support for multi-day search
  * @param accessToken User's Google access token
  * @param date Date to find slots for
  * @param durationMinutes Required duration in minutes
- * @returns Array of available time slots
+ * @param timeHorizon Number of days to search (1=today only, 3=3 days, 7=week)
+ * @returns Array of available time slots with day information
  */
 export async function findAvailableTimeSlots(
   accessToken: string,
   date: Date = new Date(),
+  durationMinutes: number = 30,
+  timeHorizon: number = 1
+): Promise<TimeSlot[]> {
+  try {
+    // Limit time horizon to reasonable values
+    timeHorizon = Math.min(Math.max(timeHorizon, 1), 14); // Between 1 and 14 days
+    const allAvailableSlots: TimeSlot[] = [];
+    
+    // Search for multiple days based on time horizon
+    for (let dayOffset = 0; dayOffset < timeHorizon; dayOffset++) {
+      // Clone the base date and add the offset
+      const searchDate = new Date(date);
+      searchDate.setDate(searchDate.getDate() + dayOffset);
+      
+      // Get slots for this particular day
+      const dailySlots = await findSlotsSingleDay(accessToken, searchDate, durationMinutes);
+      
+      // Add day information to each slot
+      const slotsWithDayInfo = dailySlots.map(slot => {
+        const slotDate = new Date(slot.start);
+        const day = getDayLabel(slotDate);
+        return {
+          ...slot,
+          day,
+          daysFromNow: dayOffset
+        };
+      });
+      
+      // Add to the combined results
+      allAvailableSlots.push(...slotsWithDayInfo);
+      
+      // If we got some slots and this is the first day, no need to look further
+      // This is the base case - only continue if no slots were found on the first day
+      if (dayOffset === 0 && slotsWithDayInfo.length > 0) {
+        break;
+      }
+      
+      // If we've found enough slots in total, we can stop searching
+      if (allAvailableSlots.length >= 5) {
+        break;
+      }
+    }
+    
+    // Limit to a reasonable number of slots and ensure proper ordering
+    // Sort to show the earliest slots first
+    return allAvailableSlots
+      .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
+      .slice(0, 5);
+  } catch (error) {
+    console.error('Error finding available time slots:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get a human-readable day label relative to today
+ */
+function getDayLabel(date: Date): string {
+  const today = new Date();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  
+  const isToday = date.toDateString() === today.toDateString();
+  const isTomorrow = date.toDateString() === tomorrow.toDateString();
+  
+  if (isToday) {
+    return 'Today';
+  } else if (isTomorrow) {
+    return 'Tomorrow';
+  } else {
+    return date.toLocaleDateString(undefined, { weekday: 'long' });
+  }
+}
+
+/**
+ * Helper function to find available slots for a single day
+ * @param accessToken User's Google access token
+ * @param date Date to find slots for
+ * @param durationMinutes Required duration in minutes
+ * @returns Array of available time slots for this specific day
+ */
+async function findSlotsSingleDay(
+  accessToken: string,
+  date: Date,
   durationMinutes: number = 30
 ): Promise<TimeSlot[]> {
   try {

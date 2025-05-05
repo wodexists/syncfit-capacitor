@@ -1,0 +1,109 @@
+Here’s a clear implementation spec for Replit to improve smart scheduling fallback logic and user experience:
+
+
+---
+
+SyncFit Feature Spec: Smart Scheduling Time Horizon & UX Fallback
+
+Context
+
+Users currently receive “No available time slots for today” if their calendar is full or it's too late (e.g. 11pm), even though valid slots may exist tomorrow or later. This feels like a dead end and doesn't reflect our app ethos of flexibility and intelligent support.
+
+
+---
+
+Goals
+
+Avoid dead ends when no slots are available today.
+
+Offer meaningful alternatives automatically.
+
+Improve visibility and user trust in smart scheduling.
+
+
+
+---
+
+Feature Summary
+
+1. Time Horizon Expansion Logic
+
+If no valid slots for today:
+
+Automatically search tomorrow’s availability.
+
+If still empty, fallback to a 3-day search window (today + 2 days).
+
+Allow extending this via user preference (see stretch goal).
+
+
+
+2. Updated UI and Microcopy
+
+Replace static error message with actionable prompt:
+
+> “No time slots available for today — want to look at tomorrow or later this week?”
+
+
+
+Add buttons:
+
+[ View Tomorrow’s Options ]
+
+[ Show Next 3 Days ]
+
+[ Custom Range (7 / 14 days) ]
+
+
+
+3. Enhanced Slot Picker Integration
+
+The Smart Recommendations modal (in Schedule Workout) should:
+
+Show extended suggestions when no results from initial day.
+
+Indicate which day each suggestion belongs to.
+
+
+
+4. Learning Mode Respect
+
+Continue respecting learned user preferences even in fallback slots:
+
+e.g. avoid late nights if user rarely chooses them
+
+factor in morning/evening/weekend trends
+
+
+
+
+---
+
+Stretch Goal (Optional Setting)
+
+Add user setting:
+
+> Default smart slot horizon:
+[Today only] [Next 3 days] [Next 7 days] [Custom]
+
+
+
+Save in user preferences doc in Firestore.
+
+
+---
+
+Benefits
+
+Reduces “smart” frustration from false negatives
+
+Keeps scheduling fluid and proactive
+
+Builds trust in SyncFit’s intelligence without forcing behaviour
+
+
+
+---
+
+Let me know if you'd like the button labels or microcopy tweaked for tone.
+

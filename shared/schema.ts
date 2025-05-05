@@ -90,6 +90,7 @@ export const userPreferences = pgTable("user_preferences", {
   recurringPattern: text("recurring_pattern"), // JSON string of recurring workout settings
   learningEnabled: boolean("learning_enabled").default(true), // Enable intelligent scheduling learning mode
   lastLearningChange: timestamp("last_learning_change"), // Last time learning mode was toggled
+  defaultTimeHorizon: integer("default_time_horizon").default(1), // Default number of days to search for time slots (1=today only, 3=3 days, 7=week)
 });
 
 export const insertUserPreferencesSchema = createInsertSchema(userPreferences).pick({
@@ -103,6 +104,7 @@ export const insertUserPreferencesSchema = createInsertSchema(userPreferences).p
   recurringPattern: true,
   learningEnabled: true,
   lastLearningChange: true,
+  defaultTimeHorizon: true,
 });
 
 // Export types
