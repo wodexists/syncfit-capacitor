@@ -18,10 +18,14 @@ import {
   RotateCw,
   ChevronRight,
   Loader2,
-  Star
+  Star,
+  Sparkles,
+  Brain
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import RecurringWorkoutForm from "./RecurringWorkoutForm";
+import { isLearningModeEnabled } from "@/lib/learningModeClient";
+import { rankTimeSlots, recordScheduledWorkout, dateToSlotId } from "@/lib/intelligentScheduling";
 
 type SchedulingMode = "smart" | "manual";
 type SchedulingTab = "single" | "recurring";
@@ -254,8 +258,29 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
   useEffect(() => {
     const fetchTimeSlots = async () => {
       if (workout) {
+        // Get raw time slots from the API
         const slots = await findAvailableTimeSlots(new Date(), workout.duration);
-        setAvailableSlots(slots);
+        
+        try {
+          // Check if learning mode is enabled
+          const learningEnabled = await isLearningModeEnabled();
+          
+          // Identify slots with adjacent meetings (not implemented yet)
+          const adjacentMeetingSlots: string[] = [];
+          
+          if (learningEnabled) {
+            // If learning mode is enabled, rank the slots
+            const rankedSlots = await rankTimeSlots(slots, learningEnabled, adjacentMeetingSlots);
+            setAvailableSlots(rankedSlots);
+          } else {
+            // Otherwise use the slots as-is
+            setAvailableSlots(slots);
+          }
+        } catch (error) {
+          console.error('Error in intelligent scheduling:', error);
+          // Fallback to unranked slots
+          setAvailableSlots(slots);
+        }
         
         // Select first time slot by default
         if (slots.length > 0) {
@@ -294,6 +319,16 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
       
       if (!selectedSlot) {
         throw new Error("Selected time slot not found");
+      }
+      
+      // Record this scheduled workout for learning purposes
+      try {
+        const startDate = new Date(selectedSlot.start);
+        const slotId = dateToSlotId(startDate);
+        await recordScheduledWorkout(slotId);
+      } catch (error) {
+        // Don't block scheduling if the learning feature fails
+        console.error('Error recording scheduled workout for learning:', error);
       }
       
       scheduleMutation.mutate({
