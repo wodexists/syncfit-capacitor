@@ -15,7 +15,7 @@ export default function NextWorkoutCard() {
   const [isSchedulingModalOpen, setIsSchedulingModalOpen] = useState(false);
   
   // Fetch upcoming workouts - we'll just use the first one
-  const { data: upcomingWorkouts, isLoading } = useQuery({
+  const { data: upcomingWorkouts, isLoading } = useQuery<ScheduledWorkout[]>({
     queryKey: ['/api/scheduled-workouts/upcoming'],
   });
   
@@ -91,12 +91,12 @@ export default function NextWorkoutCard() {
         ) : nextWorkout ? (
           // Render next workout
           <div>
-            <h3 className="font-medium text-lg">{nextWorkout.workoutName}</h3>
+            <h3 className="font-medium text-lg">{nextWorkout.workout?.name || "Workout"}</h3>
             <div className="flex items-center text-sm text-muted-foreground mb-3">
               <Clock className="h-3.5 w-3.5 mr-1.5" />
               <span>{formatWorkoutTime(nextWorkout)}</span>
               <span className="mx-1.5">•</span>
-              <span>Duration: {formatWorkoutDuration(nextWorkout.duration)}</span>
+              <span>Duration: {formatWorkoutDuration(nextWorkout.workout?.duration || 30)}</span>
             </div>
             
             <div className="flex items-center gap-2 mt-2">

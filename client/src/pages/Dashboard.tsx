@@ -7,6 +7,7 @@ import { AdminSyncPanel } from "@/components/AdminSyncPanel";
 import LearningModeToggle from "@/components/LearningModeToggle";
 import LearningModeDebugPanel from "@/components/LearningModeDebugPanel";
 import WorkoutReminderSettings from "@/components/WorkoutReminderSettings";
+import NextWorkoutCard from "@/components/NextWorkoutCard";
 
 interface User {
   id: number;
@@ -28,6 +29,9 @@ export default function Dashboard({ user }: DashboardProps) {
       {/* Dashboard Section */}
       <section id="dashboard" className="mb-8">
         <h2 className="text-2xl font-semibold mb-4">Today's Schedule</h2>
+        
+        {/* Next Workout Card - shows the next upcoming workout */}
+        <NextWorkoutCard />
         
         {/* Smart Scheduling Component */}
         <SmartScheduling />

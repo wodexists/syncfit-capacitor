@@ -23,12 +23,20 @@ import {
   Brain,
   Sun,
   Utensils,
-  Moon
+  Moon,
+  Info
 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import RecurringWorkoutForm from "./RecurringWorkoutForm";
 import { getLearningModeSetting } from "@/lib/learningModeClient";
 import { rankTimeSlots, recordScheduledWorkout, dateToSlotId } from "@/lib/intelligentScheduling";
+import SuccessConfetti from "./SuccessConfetti";
 
 type SchedulingMode = "smart" | "manual";
 type SchedulingTab = "single" | "recurring";
