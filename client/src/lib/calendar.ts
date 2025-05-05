@@ -8,6 +8,11 @@ export interface TimeSlot {
   score?: number;
 }
 
+export interface TimeSlotResponse {
+  slots: TimeSlot[];
+  timestamp: number; // Server timestamp when slots were generated
+}
+
 export interface CalendarEvent {
   id: string;
   title: string;
@@ -32,17 +37,30 @@ export interface AvailabilitySlot {
 export async function findAvailableTimeSlots(
   date: Date = new Date(),
   durationMinutes: number = 30
-): Promise<TimeSlot[]> {
+): Promise<TimeSlotResponse> {
   try {
     const response = await apiRequest('POST', '/api/calendar/available-slots', {
       date: date.toISOString(),
       durationMinutes
     });
     const data = await response.json();
+    
+    // If the server returns an array (old format), convert it to TimeSlotResponse
+    if (Array.isArray(data)) {
+      return {
+        slots: data,
+        timestamp: Date.now() // Client-side timestamp as fallback
+      };
+    }
+    
+    // Return the response in the new format
     return data;
   } catch (error) {
     console.error('Error finding available time slots:', error);
-    return [];
+    return {
+      slots: [],
+      timestamp: Date.now() // Client-side timestamp
+    };
   }
 }
 
