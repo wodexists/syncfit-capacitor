@@ -23,6 +23,9 @@ export function SyncStatus() {
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
+  const [initialLoad, setInitialLoad] = useState(true); // Track first load
+  const [isAuthIssue, setIsAuthIssue] = useState(false); // Track if we're having auth issues
+  const [lastChecked, setLastChecked] = useState<Date | null>(null);
   const [syncCounts, setSyncCounts] = useState<SyncCounts>({
     total: 0,
     pending: 0,
@@ -35,17 +38,65 @@ export function SyncStatus() {
   const [expanded, setExpanded] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [retrying, setRetrying] = useState(false);
+  const [connectivityIssue, setConnectivityIssue] = useState(false);
+  const [recoveryAttempts, setRecoveryAttempts] = useState(0);
 
   const fetchSyncStatus = async () => {
     if (user?.firebaseUid) {
       try {
         setLoading(true);
+        setConnectivityIssue(false);
+        
+        // Check if we have connectivity to Google APIs
+        try {
+          const response = await fetch('/api/calendar/calendars');
+          if (!response.ok) {
+            if (response.status === 401 || response.status === 403) {
+              // This indicates an authentication or permission issue
+              console.error("Calendar API access issue - Auth problem detected");
+              setIsAuthIssue(true);
+              
+              // Make a more aggressive attempt to fix if we've already tried multiple times
+              if (recoveryAttempts > 2) {
+                console.log("Multiple recovery attempts failed, trying to refresh user session");
+                // Forcefully clear and reset session here if implemented
+              }
+              
+              setRecoveryAttempts(prev => prev + 1);
+            } else {
+              // This is more likely a network or general API issue
+              console.error(`Calendar API access issue - HTTP ${response.status}`);
+              setConnectivityIssue(true);
+            }
+          } else {
+            // If we get here, we have API access, so reset error states
+            setIsAuthIssue(false);
+            setConnectivityIssue(false);
+            setRecoveryAttempts(0);
+          }
+        } catch (error) {
+          console.error("Error checking Google Calendar API status:", error);
+          setConnectivityIssue(true);
+        }
+        
+        // Update last checked timestamp
+        setLastChecked(new Date());
+        
+        // Still try to get event counts even if we had API issues
         const counts = await getEventStatusCounts(user.firebaseUid);
         setSyncCounts(counts);
+        
+        // If we're past initial load and still have no events,
+        // we might be in a "stalled state" which happens when Firebase
+        // auth works but we don't have calendar access
+        if (!initialLoad && counts.total === 0 && isAuthIssue) {
+          console.log("Possible stalled state - authenticated but no calendar events found");
+        }
       } catch (error) {
         console.error("Error fetching sync status:", error);
       } finally {
         setLoading(false);
+        setInitialLoad(false);
       }
     }
   };
@@ -59,6 +110,12 @@ export function SyncStatus() {
       
       // Clear the interval when the component unmounts
       return () => clearInterval(intervalId);
+    } else {
+      // Reset state when not authenticated
+      setLoading(true);
+      setIsAuthIssue(false);
+      setConnectivityIssue(false);
+      setRecoveryAttempts(0);
     }
   }, [isAuthenticated, user?.firebaseUid]);
 
@@ -211,6 +268,66 @@ export function SyncStatus() {
               <p>• Checking for pending events</p>
               <p>• Verifying Google Calendar access</p>
               <p>• Syncing new workouts</p>
+            </div>
+          </div>
+        )}
+        
+        {/* Show connectivity issues */}
+        {!loading && connectivityIssue && (
+          <div className="mt-2 text-xs bg-amber-50 border border-amber-200 rounded-md p-2">
+            <div className="flex items-center text-amber-800 font-medium mb-1">
+              <AlertTriangle className="h-3 w-3 mr-1" />
+              Calendar connectivity issue detected
+            </div>
+            <div className="text-amber-700 space-y-1">
+              <p>• We're having trouble connecting to Google Calendar</p>
+              <p>• This might be a temporary network issue</p>
+              <p>• Click refresh to try again, or check your internet connection</p>
+            </div>
+            <div className="mt-2 flex justify-end">
+              <Button 
+                size="sm" 
+                className="h-7 text-xs"
+                onClick={handleRefresh}
+                disabled={refreshing}
+              >
+                {refreshing ? (
+                  <>
+                    <RotateCw className="h-3 w-3 mr-1 animate-spin" />
+                    Retrying...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-3 w-3 mr-1" />
+                    Refresh Connection
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        )}
+        
+        {/* Show auth issues */}
+        {!loading && isAuthIssue && (
+          <div className="mt-2 text-xs bg-red-50 border border-red-200 rounded-md p-2">
+            <div className="flex items-center text-red-800 font-medium mb-1">
+              <X className="h-3 w-3 mr-1" />
+              Calendar authentication issue
+            </div>
+            <div className="text-red-700 space-y-1">
+              <p>• We can't access your Google Calendar</p>
+              <p>• You may need to reconnect or grant calendar permissions</p>
+              <p>• Try signing out and back in to reset your session</p>
+            </div>
+            <div className="mt-2 flex justify-end">
+              <Button 
+                size="sm" 
+                variant="destructive"
+                className="h-7 text-xs"
+                onClick={() => window.location.href = '/logout'}
+              >
+                Sign Out & Reconnect
+              </Button>
             </div>
           </div>
         )}
