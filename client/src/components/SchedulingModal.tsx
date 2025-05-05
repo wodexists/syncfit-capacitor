@@ -155,13 +155,91 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
             }
           }
           
+          // Get fresh slots and try to schedule again with the same slot time if possible
           const freshSlots = await findAvailableTimeSlots(new Date(), workout?.duration || 60);
+          
+          // Try to find the same time slot in the fresh slots
+          const originalStartTime = startTime;
+          const originalEndTime = endTime;
+          const matchingSlot = freshSlots.find(slot => 
+            new Date(slot.start).getHours() === new Date(originalStartTime).getHours() &&
+            new Date(slot.start).getMinutes() === new Date(originalStartTime).getMinutes()
+          );
+          
+          // If we found a matching slot, try scheduling again automatically
+          if (matchingSlot) {
+            toast({
+              title: "Retrying scheduling",
+              description: "Your calendar has changed. Attempting to schedule at the same time...",
+              variant: "default",
+            });
+            
+            // Create a new pending event
+            let newTempEventId: string | undefined;
+            if (user?.firebaseUid) {
+              try {
+                newTempEventId = await createPendingEvent(
+                  user.firebaseUid,
+                  workoutName,
+                  matchingSlot.start,
+                  matchingSlot.end
+                );
+              } catch (error) {
+                console.error("Error creating new pending event:", error);
+              }
+            }
+            
+            // Try scheduling again with fresh slot
+            try {
+              const retryResult = await apiRequest('POST', '/api/calendar/create-event', {
+                workoutName,
+                startTime: matchingSlot.start,
+                endTime: matchingSlot.end
+              });
+              
+              const retryData = await retryResult.json();
+              
+              if (retryData.success) {
+                // Update the Firestore event with the Google Calendar event ID
+                if (newTempEventId && user?.firebaseUid && retryData.eventId) {
+                  try {
+                    await updateEventAfterSync(
+                      user.firebaseUid,
+                      newTempEventId,
+                      retryData.eventId,
+                      retryData.htmlLink
+                    );
+                  } catch (error) {
+                    console.error("Error updating event after retry sync:", error);
+                  }
+                }
+                
+                // Schedule in our database
+                const scheduledWorkout = await scheduleWorkout(
+                  workoutId,
+                  matchingSlot.start,
+                  matchingSlot.end,
+                  retryData.eventId
+                );
+                
+                // Return successful retry result
+                return { 
+                  scheduledWorkout, 
+                  calendarEvent: retryData
+                };
+              }
+            } catch (error) {
+              console.error("Auto-retry scheduling failed:", error);
+            }
+          }
+          
+          // Update available slots for the UI
           setAvailableSlots(freshSlots);
           
           // Select first time slot by default
           if (freshSlots.length > 0) {
             setSelectedTimeSlot(freshSlots[0].start);
-            // Show a helpful message
+            // Show a helpful message if auto-retry failed or wasn't possible
             toast({
               title: "Calendar updated",
               description: "Your calendar has changed. We've refreshed the available time slots.",
@@ -171,6 +249,7 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
             // No slots available after refresh
             throw new Error("No available time slots found. Your calendar appears to be full.");
           }
+          
           // Return empty to prevent further execution but don't throw error
           return { scheduledWorkout: null, calendarEvent: null };
         } else {
