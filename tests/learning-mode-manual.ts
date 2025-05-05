@@ -227,8 +227,8 @@ async function testSlotRecommendations() {
       slotId: 'mon_08',
       dayOfWeek: 'monday',
       hour: 8,
-      totalScheduled: 10,
-      totalCompleted: 9,
+      totalScheduled: 20,
+      totalCompleted: 18,
       successRate: 0.9, // High success
       lastUpdated: new Date().toISOString()
     },
@@ -260,9 +260,9 @@ async function testSlotRecommendations() {
       slotId: 'thu_07',
       dayOfWeek: 'thursday',
       hour: 7,
-      totalScheduled: 12,
-      totalCompleted: 11,
-      successRate: 0.92, // Highest success
+      totalScheduled: 15,
+      totalCompleted: 14,
+      successRate: 0.93, // Highest success - slightly higher than mon_08
       lastUpdated: new Date().toISOString()
     }
   ]);
@@ -289,19 +289,19 @@ async function testSlotRecommendations() {
   
   // Test recommendation scoring
   function scoreSlot(slot: any) {
-    // Scale 0-1 success rate to 0-10 score - this is the main factor
-    const baseScore = Math.round(slot.successRate * 10);
+    // Scale 0-1 success rate to 0-10 score - must be the dominant factor
+    // Use a multiplier of 100 to ensure success rate dominates the score
+    const baseScore = slot.successRate * 100;
     
-    // Add recency bonus - newer stats get slight preference
+    // Secondary factors - these should never outweigh success rate differences
+    // Add tiny bonuses for recency and consistency
     const lastUpdated = new Date(slot.lastUpdated).getTime();
     const now = Date.now();
-    const recencyBonus = lastUpdated > (now - ONE_WEEK_MS) ? 0.5 : 0;
+    const recencyBonus = lastUpdated > (now - ONE_WEEK_MS) ? 0.1 : 0;
     
-    // Add consistency bonus - more data points = more reliable
-    // But this should be a smaller factor than success rate
-    const consistencyBonus = slot.totalScheduled > 5 ? 0.5 : 0;
+    // Consistency bonus for slots with more data
+    const consistencyBonus = Math.min(slot.totalScheduled / 100, 0.1);
     
-    // Make sure highest success rate has highest overall score
     return baseScore + recencyBonus + consistencyBonus;
   }
   
