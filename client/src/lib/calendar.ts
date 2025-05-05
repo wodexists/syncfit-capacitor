@@ -67,14 +67,27 @@ export async function findAvailableTimeSlots(
 /**
  * Get today's availability timeline
  */
-export async function getTodayAvailability(): Promise<AvailabilitySlot[]> {
+export async function getTodayAvailability(): Promise<{timeline: AvailabilitySlot[], timestamp: number}> {
   try {
     const response = await apiRequest('GET', '/api/calendar/today-availability');
     const data = await response.json();
+    
+    // If the server returns an array (old format), convert it to new format
+    if (Array.isArray(data)) {
+      return {
+        timeline: data,
+        timestamp: Date.now() // Client-side timestamp as fallback
+      };
+    }
+    
+    // Return the response in the new format
     return data;
   } catch (error) {
     console.error('Error getting today\'s availability:', error);
-    return [];
+    return {
+      timeline: [],
+      timestamp: Date.now() // Client-side timestamp
+    };
   }
 }
 

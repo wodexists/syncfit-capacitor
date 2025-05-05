@@ -17,10 +17,13 @@ interface AvailabilitySlot {
 export default function AvailabilityTimeline() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   
-  // Fetch today's availability
-  const { data: availabilitySlots, isLoading } = useQuery({
+  // Fetch today's availability with timestamp
+  const { data: availabilityData, isLoading } = useQuery({
     queryKey: ['/api/calendar/today-availability'],
   });
+  
+  // Extract timeline from the response
+  const availabilitySlots = availabilityData?.timeline || [];
   
   const formatTimeRange = (start: string, end: string) => {
     return `${format(parseISO(start), 'h:mm a')} - ${format(parseISO(end), 'h:mm a')}`;

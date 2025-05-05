@@ -643,7 +643,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         new Date()
       );
       
-      res.status(200).json(availabilityTimeline);
+      // Include a timestamp for validation
+      res.status(200).json({
+        timeline: availabilityTimeline,
+        timestamp: Date.now()
+      });
     } catch (error) {
       // Log detailed error for developers - retain this for troubleshooting
       console.error('Error getting today\'s availability:', error);
@@ -699,7 +703,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // For development purposes only - we'll use fallback data
       // In production we would use:
       // res.status(500).json({ message: 'We couldn\'t access your calendar availability right now. Please try again later.' });
-      res.status(200).json(fallbackTimeline);
+      res.status(200).json({
+        timeline: fallbackTimeline,
+        timestamp: Date.now()
+      });
     }
   });
   
