@@ -112,24 +112,23 @@ export default function LearningModeDebugPanel() {
   // Sort the slot stats based on selected field and direction
   const sortedStats = [...slotStats].sort((a, b) => {
     // Handle different field types
-    let valueA, valueB;
-    
     if (sortField === "slotId") {
-      valueA = a.slotId;
-      valueB = b.slotId;
+      const valueA = a.slotId;
+      const valueB = b.slotId;
       // String comparison
       return sortDirection === "asc" 
         ? valueA.localeCompare(valueB) 
         : valueB.localeCompare(valueA);
     } else if (sortField === "lastUsed") {
-      valueA = new Date(a.lastUsed || 0).getTime();
-      valueB = new Date(b.lastUsed || 0).getTime();
+      const valueA = new Date(a.lastUsed || 0).getTime();
+      const valueB = new Date(b.lastUsed || 0).getTime();
+      return sortDirection === "asc" ? valueA - valueB : valueB - valueA;
     } else {
-      valueA = a[sortField as keyof SlotStat] || 0;
-      valueB = b[sortField as keyof SlotStat] || 0;
+      // Handle numeric fields
+      const valueA = Number(a[sortField as keyof SlotStat] || 0);
+      const valueB = Number(b[sortField as keyof SlotStat] || 0);
+      return sortDirection === "asc" ? valueA - valueB : valueB - valueA;
     }
-    
-    return sortDirection === "asc" ? valueA - valueB : valueB - valueA;
   });
 
   // Toggle sort direction and field

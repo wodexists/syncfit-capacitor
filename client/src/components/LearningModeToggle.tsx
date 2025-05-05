@@ -1,73 +1,92 @@
+import { useState, useEffect } from "react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { useState, useEffect } from "react";
-import { Brain, Info, Sparkles } from "lucide-react";
-import { 
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from "@/components/ui/hover-card";
+import { Brain } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
+import { apiRequest } from "@/lib/queryClient";
+import { Card, CardContent } from "@/components/ui/card";
 import { 
-  getLearningModePreferences, 
-  setLearningModeEnabled,
-  type LearningModePreferences
-} from "@/lib/learningModeClient";
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from "@/components/ui/tooltip";
 
-export default function LearningModeToggle() {
-  const [learningEnabled, setLearningEnabled] = useState<boolean>(true);
-  const [lastChange, setLastChange] = useState<Date | null>(null);
+interface LearningModeToggleProps {
+  className?: string;
+  userId?: number;
+}
+
+export default function LearningModeToggle({ className, userId }: LearningModeToggleProps) {
+  const [isEnabled, setIsEnabled] = useState<boolean>(true);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const { toast } = useToast();
 
-  // Fetch current learning mode status when component mounts
+  // Fetch the current learning mode setting when the component mounts
   useEffect(() => {
-    const fetchLearningMode = async () => {
-      try {
-        const preferences = await getLearningModePreferences();
-        if (preferences) {
-          setLearningEnabled(preferences.learningEnabled);
-          setLastChange(preferences.lastLearningChange ? new Date(preferences.lastLearningChange) : null);
-        }
-      } catch (error) {
-        console.error('Error fetching learning mode preferences:', error);
-      }
-    };
+    fetchLearningModeSetting();
+  }, [userId]);
 
-    fetchLearningMode();
-  }, []);
-
-  // Handle toggling learning mode
-  const handleToggleChange = async (enabled: boolean) => {
-    setIsLoading(true);
+  const fetchLearningModeSetting = async () => {
+    if (!userId) return;
+    
     try {
-      const success = await setLearningModeEnabled(enabled);
+      setIsLoading(true);
+      const response = await apiRequest('GET', '/api/learning-mode');
+      const data = await response.json();
       
-      if (success) {
-        setLearningEnabled(enabled);
-        setLastChange(new Date());
-        
+      if (data.success) {
+        setIsEnabled(data.enabled);
+      } else {
+        console.error('Failed to fetch learning mode setting:', data.message);
+      }
+    } catch (error) {
+      console.error('Error fetching learning mode setting:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const toggleLearningMode = async () => {
+    if (!userId) {
+      toast({
+        title: "Not logged in",
+        description: "You must be logged in to change settings.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    try {
+      setIsLoading(true);
+      const newState = !isEnabled;
+      
+      const response = await apiRequest('POST', '/api/learning-mode', {
+        enabled: newState
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setIsEnabled(newState);
         toast({
-          title: enabled ? "Learning Mode Enabled" : "Learning Mode Disabled",
-          description: enabled 
-            ? "SyncFit will now learn from your workout patterns to suggest better times." 
-            : "SyncFit will no longer use your past workout data for scheduling suggestions.",
+          title: newState ? "Learning Mode Enabled" : "Learning Mode Disabled",
+          description: newState 
+            ? "SyncFit will now learn from your workout patterns to provide better recommendations." 
+            : "Your workout history is still saved, but recommendations will be paused.",
         });
       } else {
         toast({
           title: "Error",
-          description: "Could not update learning mode preferences. Please try again.",
+          description: data.message || "Failed to update learning mode setting",
           variant: "destructive",
         });
       }
     } catch (error) {
-      console.error('Error updating learning mode:', error);
+      console.error('Error toggling learning mode:', error);
       toast({
         title: "Error",
-        description: "Could not update learning mode preferences. Please try again.",
+        description: "An error occurred while updating your preferences",
         variant: "destructive",
       });
     } finally {
@@ -76,76 +95,43 @@ export default function LearningModeToggle() {
   };
 
   return (
-    <Card className="w-full">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <div className="space-y-1">
-          <CardTitle className="text-lg font-medium flex items-center gap-2">
-            <Brain className="h-5 w-5 text-primary" />
-            Learning Mode
-          </CardTitle>
-          <CardDescription>
-            Personalized scheduling based on your habits
-          </CardDescription>
-        </div>
+    <Card className={`${className}`}>
+      <CardContent className="p-4">
         <div className="flex items-center space-x-2">
+          <div className="flex-1">
+            <div className="flex items-center">
+              <Brain className="h-5 w-5 text-primary mr-2" />
+              <Label htmlFor="learning-mode" className="text-sm font-medium">
+                Intelligent Scheduling
+              </Label>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="ml-1 rounded-full bg-muted w-4 h-4 inline-flex items-center justify-center text-xs font-bold">?</div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="max-w-xs text-xs">
+                      When enabled, SyncFit learns from your workout history to suggest optimal timeslots with
+                      higher success rates. Your workout patterns are analyzed to provide personalized recommendations.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {isEnabled 
+                ? "SyncFit is learning from your patterns to recommend optimal workout times" 
+                : "Personalized scheduling recommendations are disabled"}
+            </p>
+          </div>
           <Switch
             id="learning-mode"
-            checked={learningEnabled}
-            onCheckedChange={handleToggleChange}
+            checked={isEnabled}
+            onCheckedChange={toggleLearningMode}
             disabled={isLoading}
           />
-          <Label 
-            htmlFor="learning-mode" 
-            className={`text-sm ${learningEnabled ? 'text-primary font-medium' : 'text-muted-foreground'}`}
-          >
-            {learningEnabled ? 'Enabled' : 'Disabled'}
-          </Label>
-        </div>
-      </CardHeader>
-      <CardContent className="pt-2 pb-0">
-        <div className="text-sm text-muted-foreground">
-          {learningEnabled ? (
-            <div className="flex items-center mt-2 gap-2">
-              <Sparkles className="h-4 w-4 text-yellow-500" />
-              <span>SyncFit learns from your successful workouts to suggest optimal times</span>
-            </div>
-          ) : (
-            <p>Enable to receive workout time suggestions based on your past success patterns</p>  
-          )}
         </div>
       </CardContent>
-      <CardFooter className="flex justify-between border-t pt-3 mt-3">
-        {lastChange ? (
-          <p className="text-xs text-muted-foreground flex items-center">
-            Last changed: {format(lastChange, 'MMM d, yyyy')}
-          </p>
-        ) : (
-          <span></span>
-        )}
-        
-        <HoverCard>
-          <HoverCardTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-              <span className="sr-only">Learn more</span>
-              <Info className="h-4 w-4" />
-            </Button>
-          </HoverCardTrigger>
-          <HoverCardContent className="w-80">
-            <div className="space-y-2">
-              <h4 className="text-sm font-semibold">About Learning Mode</h4>
-              <p className="text-sm">
-                When enabled, SyncFit analyzes which time slots have led to 
-                the highest workout completion rates and recommends similar times 
-                for future workouts.
-              </p>
-              <p className="text-sm">
-                This feature helps optimize your schedule for times when you're 
-                most likely to complete your workouts successfully.
-              </p>
-            </div>
-          </HoverCardContent>
-        </HoverCard>
-      </CardFooter>
     </Card>
   );
 }

@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import RecurringWorkoutForm from "./RecurringWorkoutForm";
-import { isLearningModeEnabled } from "@/lib/learningModeClient";
+import { getLearningModeSetting } from "@/lib/learningModeClient";
 import { rankTimeSlots, recordScheduledWorkout, dateToSlotId } from "@/lib/intelligentScheduling";
 
 type SchedulingMode = "smart" | "manual";
@@ -263,7 +263,8 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
         
         try {
           // Check if learning mode is enabled
-          const learningEnabled = await isLearningModeEnabled();
+          const learningModeResult = await getLearningModeSetting();
+          const learningEnabled = learningModeResult.success && learningModeResult.enabled;
           
           // Identify slots with adjacent meetings (not implemented yet)
           const adjacentMeetingSlots: string[] = [];
