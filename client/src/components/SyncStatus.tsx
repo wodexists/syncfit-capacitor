@@ -165,10 +165,11 @@ export function SyncStatus() {
     return null;
   }
 
-  // Don't show if there are no events tracked
-  if (!loading && syncCounts.total === 0) {
-    return null;
-  }
+  // Always show the sync status for now, even when there are no events
+  // This helps with debugging and provides better user feedback
+  // if (!loading && syncCounts.total === 0) {
+  //   return null;
+  // }
 
   // Calculate progress percentage
   const syncedPercentage = syncCounts.total > 0 
@@ -511,12 +512,27 @@ export function SyncStatus() {
             
             <div id="syncfit-diagnostics" className="mt-2 bg-slate-50 border border-slate-200 rounded-md p-2 text-xs font-mono hidden">
               <p className="font-medium text-slate-700 mb-1">Sync State Diagnostic Log:</p>
-              <div className="space-y-0.5 text-slate-600 max-h-32 overflow-y-auto">
-                <p>Last API Call: {new Date().toISOString()}</p>
+              <div className="space-y-0.5 text-slate-600 max-h-64 overflow-y-auto">
+                <p>Last API Call: {lastChecked?.toISOString() || 'Never'}</p>
                 <p>Auth Status: {isAuthenticated ? 'Authenticated' : 'Not Authenticated'}</p>
-                <p>Sync Counts: {JSON.stringify(syncCounts)}</p>
+                <p>Google Calendar Connectivity: {
+                  connectivityIssue ? 'Error - Connection Problem' : 
+                  isAuthIssue ? 'Error - Authentication Problem' :
+                  'OK'
+                }</p>
                 <p>User ID: {user?.firebaseUid || 'Unknown'}</p>
+                <p>Initial Load Complete: {initialLoad ? 'No' : 'Yes'}</p>
+                <p>Recovery Attempts: {recoveryAttempts}</p>
                 <p>Pending Retries: {syncCounts.error}</p>
+                <p>Sync Counts: {JSON.stringify(syncCounts, null, 2)}</p>
+                <p>Last Checked: {lastChecked?.toLocaleTimeString() || 'Never'}</p>
+                <p>Session Health: {
+                  isAuthenticated && user?.firebaseUid && !isAuthIssue ? 'Healthy' :
+                  isAuthenticated && user?.firebaseUid && isAuthIssue ? 'Auth Token Problem' :
+                  isAuthenticated && !user?.firebaseUid ? 'Missing User ID' :
+                  'Not Authenticated'
+                }</p>
+                <p>Auto-refresh Active: {isAuthenticated ? 'Yes (30s)' : 'No'}</p>
               </div>
             </div>
           </div>
