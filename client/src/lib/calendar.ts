@@ -4,6 +4,8 @@ export interface TimeSlot {
   start: string;
   end: string;
   label?: string;
+  isRecommended?: boolean;
+  score?: number;
 }
 
 export interface CalendarEvent {

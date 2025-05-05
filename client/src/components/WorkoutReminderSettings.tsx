@@ -1,223 +1,184 @@
-import { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, Clock, Bell, Check, RotateCw } from "lucide-react";
-import { apiRequest } from '@/lib/queryClient';
-import { useToast } from '@/hooks/use-toast';
+import { Label } from "@/components/ui/label";
+import { useState, useEffect } from "react";
+import { Bell, Clock } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
-import LearningModeToggle from './LearningModeToggle';
+interface ReminderSettings {
+  enableReminders: boolean;
+  reminderTime: number; // minutes before workout
+  useNotifications: boolean;
+}
 
 export default function WorkoutReminderSettings() {
-  const [reminderMinutes, setReminderMinutes] = useState(30);
-  const [enableRecurring, setEnableRecurring] = useState(false);
+  const [settings, setSettings] = useState<ReminderSettings>({
+    enableReminders: true,
+    reminderTime: 30,
+    useNotifications: true
+  });
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const { toast } = useToast();
-  const queryClient = useQueryClient();
 
-  // Query to fetch user preferences
-  const { data: preferences, isLoading, error } = useQuery<any>({
-    queryKey: ['/api/user-preferences'],
-    refetchOnWindowFocus: false,
-  });
-
-  // Mutation to save reminder preferences
-  const reminderMutation = useMutation({
-    mutationFn: (minutes: number) => {
-      return apiRequest('/api/calendar/reminder-preferences', 'POST', { reminderMinutes: minutes });
-    },
-    onSuccess: () => {
-      toast({
-        title: "Reminder preferences saved",
-        description: `You'll be reminded ${reminderMinutes} minutes before your workouts`,
-        variant: "default",
-      });
-      
-      queryClient.invalidateQueries({ queryKey: ['/api/user-preferences'] });
-    },
-    onError: (error) => {
-      toast({
-        title: "Error saving preferences",
-        description: "There was a problem saving your reminder preferences",
-        variant: "destructive",
-      });
-      console.error('Error saving reminder preferences:', error);
-    }
-  });
-
-  // Mutation to save recurring workout preferences
-  const recurringMutation = useMutation({
-    mutationFn: (enableRecurring: boolean) => {
-      return apiRequest('/api/user-preferences', 'POST', { enableRecurring });
-    },
-    onSuccess: () => {
-      toast({
-        title: "Recurring workout preferences saved",
-        description: enableRecurring 
-          ? "Recurring workout feature has been enabled" 
-          : "Recurring workout feature has been disabled",
-        variant: "default",
-      });
-      
-      queryClient.invalidateQueries({ queryKey: ['/api/user-preferences'] });
-    },
-    onError: (error) => {
-      toast({
-        title: "Error saving preferences",
-        description: "There was a problem saving your recurring workout preferences",
-        variant: "destructive",
-      });
-      console.error('Error saving recurring preferences:', error);
-    }
-  });
-
-  // Initialize values from fetched preferences
+  // Fetch current reminder settings when component mounts
   useEffect(() => {
-    if (preferences) {
-      if (preferences.reminderMinutes !== undefined) {
-        setReminderMinutes(preferences.reminderMinutes);
+    const fetchReminderSettings = async () => {
+      try {
+        const response = await apiRequest('GET', '/api/calendar/reminder-preferences');
+        const data = await response.json();
+        
+        if (data.success) {
+          setSettings({
+            enableReminders: data.enableReminders ?? true,
+            reminderTime: data.reminderTime ?? 30,
+            useNotifications: data.useNotifications ?? true
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching reminder settings:', error);
       }
+    };
+
+    fetchReminderSettings();
+  }, []);
+
+  // Save reminder settings
+  const saveReminderSettings = async (newSettings: Partial<ReminderSettings>) => {
+    setIsLoading(true);
+    try {
+      const updatedSettings = { ...settings, ...newSettings };
+      const response = await apiRequest('POST', '/api/calendar/reminder-preferences', updatedSettings);
+      const data = await response.json();
       
-      if (preferences.enableRecurring !== undefined) {
-        setEnableRecurring(preferences.enableRecurring);
+      if (data.success) {
+        setSettings(updatedSettings);
+        toast({
+          title: "Reminder settings updated",
+          description: "Your workout reminder preferences have been saved.",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Could not update reminder settings. Please try again.",
+          variant: "destructive",
+        });
       }
+    } catch (error) {
+      console.error('Error saving reminder settings:', error);
+      toast({
+        title: "Error",
+        description: "Could not update reminder settings. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
-  }, [preferences]);
-
-  const handleSaveReminder = () => {
-    reminderMutation.mutate(reminderMinutes);
   };
 
-  const handleSaveRecurring = () => {
-    recurringMutation.mutate(enableRecurring);
+  // Handle reminder time change
+  const handleReminderTimeChange = (value: string) => {
+    saveReminderSettings({ reminderTime: parseInt(value) });
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center p-8">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="ml-2">Loading your preferences...</p>
-      </div>
-    );
-  }
+  // Handle enable/disable reminders
+  const handleEnableReminders = (enabled: boolean) => {
+    saveReminderSettings({ enableReminders: enabled });
+  };
+
+  // Handle enable/disable notifications
+  const handleEnableNotifications = (enabled: boolean) => {
+    saveReminderSettings({ useNotifications: enabled });
+  };
+
+  const reminderTimeOptions = [
+    { value: "10", label: "10 minutes before" },
+    { value: "15", label: "15 minutes before" },
+    { value: "30", label: "30 minutes before" },
+    { value: "60", label: "1 hour before" },
+    { value: "120", label: "2 hours before" },
+    { value: "1440", label: "1 day before" },
+  ];
 
   return (
-    <div className="space-y-6">
-      <Card className="w-full">
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Bell className="mr-2 h-5 w-5" />
+    <Card className="w-full">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <div className="space-y-1">
+          <CardTitle className="text-lg font-medium flex items-center gap-2">
+            <Bell className="h-5 w-5 text-primary" />
             Workout Reminders
           </CardTitle>
           <CardDescription>
-            Choose how many minutes before your workout to receive a reminder
+            Get notified about your upcoming workouts
           </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <Label>Reminder time: {reminderMinutes} minutes before</Label>
-                <span className="text-sm text-muted-foreground">
-                  <Clock className="inline-block mr-1 h-3 w-3" /> 
-                  {reminderMinutes === 0 ? 'At start time' : `${reminderMinutes} min${reminderMinutes !== 1 ? 's' : ''}`}
-                </span>
-              </div>
-              <Slider 
-                value={[reminderMinutes]} 
-                min={0} 
-                max={60} 
-                step={5}
-                onValueChange={(vals) => setReminderMinutes(vals[0])}
-              />
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>0 min</span>
-                <span>15 min</span>
-                <span>30 min</span>
-                <span>45 min</span>
-                <span>60 min</span>
-              </div>
-            </div>
-            
-            <div className="flex justify-end">
-              <Button
-                onClick={handleSaveReminder}
-                disabled={reminderMutation.isPending}
-                className="flex items-center"
-              >
-                {reminderMutation.isPending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Check className="mr-2 h-4 w-4" />
-                    Save
-                  </>
-                )}
-              </Button>
-            </div>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Switch
+            id="enable-reminders"
+            checked={settings.enableReminders}
+            onCheckedChange={handleEnableReminders}
+            disabled={isLoading}
+          />
+          <Label 
+            htmlFor="enable-reminders" 
+            className={`text-sm ${settings.enableReminders ? 'text-primary font-medium' : 'text-muted-foreground'}`}
+          >
+            {settings.enableReminders ? 'Enabled' : 'Disabled'}
+          </Label>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-2">
+        <div className={`space-y-4 ${!settings.enableReminders ? 'opacity-50 pointer-events-none' : ''}`}>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="reminder-time" className="text-sm">Reminder time</Label>
+            <Select 
+              value={settings.reminderTime.toString()} 
+              onValueChange={handleReminderTimeChange}
+              disabled={isLoading || !settings.enableReminders}
+            >
+              <SelectTrigger id="reminder-time" className="w-full">
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
+                  <SelectValue placeholder="Select when to be reminded" />
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                {reminderTimeOptions.map(option => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-        </CardContent>
-      </Card>
 
-      <Card className="w-full">
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <RotateCw className="mr-2 h-5 w-5" />
-            Recurring Workouts
-          </CardTitle>
-          <CardDescription>
-            Enable the ability to schedule workouts on a recurring basis
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label htmlFor="recurring-toggle">Enable recurring workouts</Label>
-                <p className="text-sm text-muted-foreground">
-                  Schedule your workouts on a daily or weekly basis
-                </p>
-              </div>
-              <Switch
-                id="recurring-toggle"
-                checked={enableRecurring}
-                onCheckedChange={setEnableRecurring}
-              />
+          <Separator />
+
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="use-notifications" className="text-sm">Use browser notifications</Label>
+              <p className="text-xs text-muted-foreground">
+                Receive popup notifications in your browser
+              </p>
             </div>
-            
-            <Separator className="my-4" />
-            
-            <div className="flex justify-end">
-              <Button
-                onClick={handleSaveRecurring}
-                disabled={recurringMutation.isPending}
-                className="flex items-center"
-              >
-                {recurringMutation.isPending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Check className="mr-2 h-4 w-4" />
-                    Save
-                  </>
-                )}
-              </Button>
-            </div>
+            <Switch
+              id="use-notifications"
+              checked={settings.useNotifications}
+              onCheckedChange={handleEnableNotifications}
+              disabled={isLoading || !settings.enableReminders}
+            />
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Learning Mode Toggle */}
-      <LearningModeToggle />
-    </div>
+        </div>
+      </CardContent>
+      <CardFooter className="flex justify-between border-t pt-3 mt-3">
+        <div className="text-xs text-muted-foreground">
+          {settings.enableReminders
+            ? `Reminders will be sent ${reminderTimeOptions.find(o => o.value === settings.reminderTime.toString())?.label || ''}`
+            : 'Reminders are currently disabled'}
+        </div>
+      </CardFooter>
+    </Card>
   );
 }

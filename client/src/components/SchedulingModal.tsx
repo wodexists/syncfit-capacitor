@@ -597,7 +597,13 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
           </div>
         </div>
         
-        <h3 className="font-medium mb-2">Recommended Time Slots</h3>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="font-medium">Available Time Slots</h3>
+          <div className="flex items-center text-xs text-muted-foreground">
+            <Brain className="h-4 w-4 mr-1 text-primary" />
+            Smart Recommendations
+          </div>
+        </div>
         
         {availableSlots.length > 0 ? (
           <RadioGroup value={selectedTimeSlot || undefined} onValueChange={setSelectedTimeSlot}>
@@ -606,13 +612,35 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
                 const startDate = new Date(slot.start);
                 const endDate = new Date(slot.end);
                 const timeRangeText = formatDateTimeRange(startDate, endDate);
+                const isRecommended = slot.isRecommended === true;
+                const hasScore = typeof slot.score !== 'undefined';
                 
                 return (
-                  <div key={index} className="calendar-time-slot border rounded-md p-2 flex items-center hover:bg-muted">
+                  <div 
+                    key={index} 
+                    className={`calendar-time-slot border rounded-md p-2 flex items-center hover:bg-muted 
+                      ${isRecommended ? 'border-primary bg-primary/5' : ''}
+                    `}
+                  >
                     <RadioGroupItem value={slot.start} id={`slot-${index}`} className="mr-2" />
                     <Label htmlFor={`slot-${index}`} className="text-sm flex-grow cursor-pointer">
-                      {timeRangeText}
-                      {slot.label && <div className="text-xs text-muted-foreground">{slot.label}</div>}
+                      <div className="flex items-center justify-between">
+                        <span>{timeRangeText}</span>
+                        {isRecommended && (
+                          <div className="flex items-center gap-1 text-primary text-xs font-medium">
+                            <Sparkles className="h-3.5 w-3.5" />
+                            Recommended
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between">
+                        {slot.label && <div className="text-xs text-muted-foreground">{slot.label}</div>}
+                        {hasScore && (
+                          <div className="text-xs text-muted-foreground">
+                            {(slot.score ?? 0) > 7 ? '✦ Optimal' : (slot.score ?? 0) > 5 ? '○ Good' : ''}
+                          </div>
+                        )}
+                      </div>
                     </Label>
                   </div>
                 );
