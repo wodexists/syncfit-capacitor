@@ -1,4 +1,6 @@
 import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { useCallback } from "react";
 
 export interface TimeSlot {
   start: string;
@@ -160,4 +162,149 @@ export function getDaysFromNow(date: Date): number {
   targetDate.setHours(0, 0, 0, 0);
   
   return Math.round((targetDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+/**
+ * Result of calendar event creation operation
+ */
+export interface CalendarEventResult {
+  success: boolean;
+  eventId?: string;
+  htmlLink?: string;
+  errorType?: 'authError' | 'conflict' | 'network' | 'retry' | 'serverError';
+  message?: string;
+  requiresReconnect?: boolean;
+}
+
+/**
+ * Create a calendar event with enhanced error handling
+ */
+export async function createCalendarEvent(
+  workoutName: string,
+  startTime: string,
+  endTime: string,
+  slotsTimestamp?: number
+): Promise<CalendarEventResult> {
+  try {
+    console.log(`Creating calendar event: ${workoutName} at ${new Date(startTime).toLocaleString()}`);
+    
+    const response = await apiRequest('POST', '/api/calendar/create-event', {
+      workoutName,
+      startTime,
+      endTime,
+      slotsTimestamp
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      console.log('Successfully created calendar event', data);
+      return {
+        success: true,
+        eventId: data.eventId,
+        htmlLink: data.htmlLink
+      };
+    } else {
+      console.error('Error creating calendar event:', data);
+      return {
+        success: false,
+        message: data.message || 'Failed to create calendar event',
+        errorType: data.authError ? 'authError' : 'serverError',
+        requiresReconnect: data.action === 'reconnect'
+      };
+    }
+  } catch (error: any) {
+    // Handle non-JSON responses or network errors
+    console.error('Exception creating calendar event:', error);
+    
+    // Determine error type from status code if available
+    if (error.status === 401 || error.status === 403) {
+      return {
+        success: false,
+        errorType: 'authError',
+        requiresReconnect: true,
+        message: 'Your Google Calendar access has expired. Please reconnect your account.'
+      };
+    } else if (error.status === 409) {
+      return {
+        success: false,
+        errorType: 'conflict',
+        message: 'That time slot conflicts with another event. Please choose a different time.'
+      };
+    } else if (error.status === 429) {
+      return {
+        success: false,
+        errorType: 'retry',
+        message: 'Too many requests. Please wait a moment and try again.'
+      };
+    } else if (error.name === 'NetworkError' || error.message?.includes('network') || !navigator.onLine) {
+      return {
+        success: false,
+        errorType: 'network',
+        message: 'Network error. Please check your connection and try again.'
+      };
+    }
+    
+    // Default error
+    return {
+      success: false,
+      errorType: 'serverError',
+      message: 'An unexpected error occurred. Please try again later.'
+    };
+  }
+}
+
+/**
+ * React hook for calendar operations with toast notifications
+ */
+export function useCalendarOperations() {
+  const { toast } = useToast();
+  
+  const scheduleWorkout = useCallback(async (
+    workoutName: string,
+    startTime: string,
+    endTime: string,
+    slotsTimestamp?: number
+  ) => {
+    const result = await createCalendarEvent(workoutName, startTime, endTime, slotsTimestamp);
+    
+    if (result.success) {
+      toast({
+        title: "Workout Scheduled",
+        description: "Your workout has been added to Google Calendar",
+        variant: "default",
+      });
+      return result;
+    } else {
+      // Handle error types with appropriate messaging
+      if (result.errorType === 'authError') {
+        toast({
+          title: "Calendar Access Error",
+          description: result.message || "Please reconnect your Google Calendar account",
+          variant: "destructive",
+        });
+      } else if (result.errorType === 'conflict') {
+        toast({
+          title: "Time Conflict",
+          description: result.message || "That time slot conflicts with an existing event",
+          variant: "destructive",
+        });
+      } else if (result.errorType === 'network') {
+        toast({
+          title: "Network Error",
+          description: result.message || "Please check your internet connection",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Calendar Error",
+          description: result.message || "Failed to schedule workout",
+          variant: "destructive",
+        });
+      }
+      return result;
+    }
+  }, [toast]);
+  
+  return { scheduleWorkout };
 }

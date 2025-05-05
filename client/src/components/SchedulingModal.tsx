@@ -3,7 +3,14 @@ import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { useEffect, useState } from "react";
-import { formatDateTimeRange, findAvailableTimeSlots, TimeSlot, TimeSlotResponse } from "@/lib/calendar";
+import { 
+  formatDateTimeRange, 
+  findAvailableTimeSlots, 
+  TimeSlot, 
+  TimeSlotResponse, 
+  useCalendarOperations, 
+  createCalendarEvent 
+} from "@/lib/calendar";
 import { formatWorkoutDuration, scheduleWorkout, type Workout } from "@/lib/workouts";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
