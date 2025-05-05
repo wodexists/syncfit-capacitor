@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { useEffect, useState } from "react";
-import { formatDateTimeRange, findAvailableTimeSlots, TimeSlot } from "@/lib/calendar";
+import { formatDateTimeRange, findAvailableTimeSlots, TimeSlot, TimeSlotResponse } from "@/lib/calendar";
 import { formatWorkoutDuration, scheduleWorkout, type Workout } from "@/lib/workouts";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -156,7 +156,9 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
           }
           
           // Get fresh slots and try to schedule again with the same slot time if possible
-          const freshSlots = await findAvailableTimeSlots(new Date(), workout?.duration || 60);
+          const slotsResponse = await findAvailableTimeSlots(new Date(), workout?.duration || 60);
+          const freshSlots = slotsResponse.slots;
+          const slotTimestamp = slotsResponse.timestamp;
           
           // Try to find the same time slot in the fresh slots
           const originalStartTime = startTime;

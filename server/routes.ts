@@ -572,15 +572,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }
           
-          res.status(200).json(rankedSlots);
+          // Return slots with a timestamp
+          res.status(200).json({
+            slots: rankedSlots,
+            timestamp: Date.now()
+          });
         } catch (error) {
           console.error('Error ranking time slots:', error);
           // Fall back to unranked slots if there's an error in the ranking process
-          res.status(200).json(availableSlots);
+          res.status(200).json({
+            slots: availableSlots,
+            timestamp: Date.now()
+          });
         }
       } else {
         // Return slots without ranking if learning mode is disabled
-        res.status(200).json(availableSlots);
+        res.status(200).json({
+          slots: availableSlots,
+          timestamp: Date.now()
+        });
       }
     } catch (error) {
       // Log detailed error for developers - retain this for troubleshooting
@@ -610,7 +620,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // For development purposes only - we'll use fallback data
       // In production we would use:
       // res.status(500).json({ message: 'We couldn\'t access your calendar right now. Please try again later.' });
-      res.status(200).json(fallbackSlots);
+      res.status(200).json({
+        slots: fallbackSlots,
+        timestamp: Date.now()
+      });
     }
   });
 
