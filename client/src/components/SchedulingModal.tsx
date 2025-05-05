@@ -107,12 +107,13 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
         // Continue even if Firebase tracking fails - don't block the user
       }
       
-      // Create the event directly - we're already using pre-verified free time slots
-      // from the available slots API, so no need to check for conflicts again
+      // Create the event directly - include the timestamp from when we fetched the slots
+      // to help the server verify if the calendar has been updated since
       const conflictCheck = await apiRequest('POST', '/api/calendar/create-event', {
         workoutName,
         startTime,
-        endTime
+        endTime,
+        slotsTimestamp // Send the timestamp when slots were fetched
       });
       
       const calendarData = await conflictCheck.json();
@@ -196,7 +197,8 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
               const retryResult = await apiRequest('POST', '/api/calendar/create-event', {
                 workoutName,
                 startTime: matchingSlot.start,
-                endTime: matchingSlot.end
+                endTime: matchingSlot.end,
+                slotsTimestamp: slotTimestamp // Include the fresh timestamp
               });
               
               const retryData = await retryResult.json();
@@ -335,12 +337,19 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
     }
   });
 
+  // Keep track of the slots timestamp for validation
+  const [slotsTimestamp, setSlotsTimestamp] = useState<number>(0);
+
   // Fetch available time slots when modal opens or workout changes
   useEffect(() => {
     const fetchTimeSlots = async () => {
       if (workout) {
         // Get raw time slots from the API
-        const slots = await findAvailableTimeSlots(new Date(), workout.duration);
+        const slotsResponse = await findAvailableTimeSlots(new Date(), workout.duration);
+        const slots = slotsResponse.slots;
+        
+        // Store the timestamp for validation during booking
+        setSlotsTimestamp(slotsResponse.timestamp);
         
         try {
           // Check if learning mode is enabled
