@@ -592,6 +592,7 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
               workoutName={activeWorkout.name}
               startTime={selectedTimeSlot}
               endTime={availableSlots.find(slot => slot.start === selectedTimeSlot)?.end || ""}
+              timestamp={slotsTimestamp} // Pass the timestamp for slot validation
               onSuccess={handleRecurringSuccess}
               onCancel={() => setScheduleTab("single")}
             />

@@ -714,6 +714,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const { workoutName, startTime, endTime, googleEventId, slotsTimestamp } = req.body;
+      console.log(`[SingleWorkout] Request received with workout "${workoutName}", timestamp=${slotsTimestamp || 'not provided'}`);
       
       if (!workoutName || !startTime || !endTime) {
         return res.status(400).json({ message: 'Missing required fields' });
@@ -725,12 +726,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const timeDifference = currentTime - slotsTimestamp;
         const maxAge = 5 * 60 * 1000; // 5 minutes in milliseconds
         
+        console.log(`[SingleWorkout] Timestamp validation: current=${currentTime}, slot=${slotsTimestamp}, diff=${timeDifference}ms, maxAge=${maxAge}ms`);
+        
         if (timeDifference > maxAge) {
+          console.log(`[SingleWorkout] Timestamp expired: diff=${timeDifference}ms > maxAge=${maxAge}ms`);
           return res.status(409).json({
             success: false,
             message: 'That time slot just filled up. Let\'s refresh and find you a new time that works.'
           });
         }
+      } else {
+        console.log(`[SingleWorkout] No timestamp provided for validation`);
       }
       
       // Get user's reminder preferences if any
@@ -813,6 +819,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const { workoutName, startTime, endTime, pattern, slotsTimestamp } = req.body;
+      console.log(`[RecurringWorkout] Request received with workout "${workoutName}", pattern=${pattern}, timestamp=${slotsTimestamp || 'not provided'}`);
       
       if (!workoutName || !startTime || !endTime || !pattern) {
         return res.status(400).json({ message: 'Missing required fields' });
@@ -824,12 +831,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const timeDifference = currentTime - slotsTimestamp;
         const maxAge = 5 * 60 * 1000; // 5 minutes in milliseconds
         
+        console.log(`[RecurringWorkout] Timestamp validation: current=${currentTime}, slot=${slotsTimestamp}, diff=${timeDifference}ms, maxAge=${maxAge}ms`);
+        
         if (timeDifference > maxAge) {
+          console.log(`[RecurringWorkout] Timestamp expired: diff=${timeDifference}ms > maxAge=${maxAge}ms`);
           return res.status(409).json({
             success: false,
             message: 'That time slot just filled up. Let\'s refresh and find you a new time that works.'
           });
         }
+      } else {
+        console.log(`[RecurringWorkout] No timestamp provided for validation`);
       }
       
       // Get user's reminder preferences if any
