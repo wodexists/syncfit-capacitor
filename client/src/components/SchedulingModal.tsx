@@ -663,7 +663,19 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
             <div className="flex items-center">
               <Clock className={`h-5 w-5 mr-3 ${mode === "smart" ? "text-white" : "text-primary"}`} />
               <div>
-                <h3 className={`font-medium ${mode === "smart" ? "text-white" : ""}`}>Smart Scheduling</h3>
+                <div className="flex items-center gap-1">
+                  <h3 className={`font-medium ${mode === "smart" ? "text-white" : ""}`}>Smart Scheduling</h3>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className={`h-3.5 w-3.5 ${mode === "smart" ? "text-gray-200" : "text-gray-400"}`} />
+                      </TooltipTrigger>
+                      <TooltipContent side="right" className="max-w-[250px] text-xs">
+                        <p>Chosen based on your recent scheduling patterns and calendar availability.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
                 <p className={`text-xs ${mode === "smart" ? "text-gray-200" : "text-gray-600"}`}>Find the best time slots based on your calendar</p>
               </div>
             </div>
@@ -709,7 +721,17 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
           <h3 className="font-medium">Available Time Slots</h3>
           <div className="flex items-center text-xs text-muted-foreground">
             <Brain className="h-4 w-4 mr-1 text-primary" />
-            Smart Recommendations
+            <span>Smart Recommendations</span>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="h-3.5 w-3.5 ml-1 text-gray-400" />
+                </TooltipTrigger>
+                <TooltipContent side="left" className="max-w-[250px] text-xs">
+                  <p>Chosen based on your recent scheduling patterns and calendar availability.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </div>
         

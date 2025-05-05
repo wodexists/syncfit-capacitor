@@ -134,3 +134,19 @@ export async function deleteScheduledWorkout(id: number): Promise<boolean> {
 
   return true;
 }
+
+/**
+ * Mark a workout as completed
+ */
+export async function markWorkoutAsCompleted(id: number): Promise<ScheduledWorkout> {
+  const response = await apiRequest('PUT', `/api/scheduled-workouts/${id}`, {
+    completed: true
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText || 'Failed to mark workout as completed');
+  }
+
+  return response.json();
+}
