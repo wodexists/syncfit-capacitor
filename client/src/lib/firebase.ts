@@ -7,6 +7,7 @@ import {
   getRedirectResult,
   GoogleAuthProvider 
 } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
 import { apiRequest } from "@/lib/queryClient";
 
 // Use the original Firebase auth domain
@@ -25,6 +26,7 @@ console.log(`Current URL: ${window.location.href}`);
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+const db = getFirestore(app);
 
 // Configure Google Auth Provider with required scopes for Calendar
 const provider = new GoogleAuthProvider();
@@ -391,4 +393,4 @@ export async function signOut(): Promise<boolean> {
   }
 }
 
-export { auth };
+export { auth, db };

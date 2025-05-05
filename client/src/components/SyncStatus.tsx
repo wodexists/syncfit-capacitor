@@ -1,120 +1,174 @@
-import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { checkPendingEvents, useSyncStatus } from '@/lib/calendarSync';
-import { Loader2, RefreshCw, CheckCircle2, AlertTriangle } from 'lucide-react';
-import { useAuth } from '../hooks/useAuth';
+import { useEffect, useState } from "react";
+import { Check, RefreshCw, Info, X, AlertCircle } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Card } from "@/components/ui/card";
+import { useAuth } from "@/hooks/useAuth";
+import { getEventStatusCounts } from "@/lib/calendarSync";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 
-export type SyncStatusType = 'idle' | 'syncing' | 'synced' | 'error';
+interface SyncCounts {
+  total: number;
+  pending: number;
+  synced: number;
+  error: number;
+  success: number;
+}
 
 export function SyncStatus() {
-  const [status, setStatus] = useState<SyncStatusType>('idle');
-  const [pendingCount, setPendingCount] = useState<number>(0);
-  const { resync } = useSyncStatus();
-  const { user } = useAuth();
-  
-  // Check for pending events on mount
-  useEffect(() => {
-    let isMounted = true;
-    
-    const checkEvents = async () => {
-      if (!user?.firebaseUid) return;
-      
+  const { user, isAuthenticated } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [syncCounts, setSyncCounts] = useState<SyncCounts>({
+    total: 0,
+    pending: 0,
+    synced: 0,
+    error: 0,
+    success: 0
+  });
+  const [expanded, setExpanded] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchSyncStatus = async () => {
+    if (user?.firebaseUid) {
       try {
-        const count = await checkPendingEvents(user.firebaseUid);
-        if (isMounted) {
-          setPendingCount(count);
-          setStatus(count > 0 ? 'error' : 'idle');
-        }
+        setLoading(true);
+        const counts = await getEventStatusCounts(user.firebaseUid);
+        setSyncCounts(counts);
       } catch (error) {
-        console.error('Error checking pending events:', error);
-        if (isMounted) {
-          setStatus('error');
-        }
+        console.error("Error fetching sync status:", error);
+      } finally {
+        setLoading(false);
       }
-    };
-    
-    checkEvents();
-    
-    // Set up an interval to check for pending events
-    const interval = setInterval(checkEvents, 60000); // Check every minute
-    
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
-    };
-  }, [user]);
-  
-  const handleResync = async () => {
-    if (!user?.firebaseUid) return;
-    
-    setStatus('syncing');
-    
-    try {
-      const result = await resync(user.firebaseUid);
-      setStatus(result.failed > 0 ? 'error' : 'synced');
-      
-      // Check pending count again
-      const count = await checkPendingEvents(user.firebaseUid);
-      setPendingCount(count);
-      
-      // Reset to idle after a few seconds when synced
-      if (result.failed === 0) {
-        setTimeout(() => {
-          setStatus('idle');
-        }, 3000);
-      }
-    } catch (error) {
-      console.error('Error during resync:', error);
-      setStatus('error');
     }
   };
-  
-  // Don't show anything if there are no pending events and status is idle
-  if (status === 'idle' && pendingCount === 0) {
+
+  useEffect(() => {
+    if (isAuthenticated && user?.firebaseUid) {
+      fetchSyncStatus();
+    }
+  }, [isAuthenticated, user?.firebaseUid]);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchSyncStatus();
+    setRefreshing(false);
+  };
+
+  // Don't show the component if not authenticated
+  if (!isAuthenticated || !user) {
     return null;
   }
-  
+
+  // Don't show if there are no events tracked
+  if (!loading && syncCounts.total === 0) {
+    return null;
+  }
+
+  // Calculate progress percentage
+  const syncedPercentage = syncCounts.total > 0 
+    ? Math.round((syncCounts.synced / syncCounts.total) * 100) 
+    : 0;
+
   return (
-    <div className="flex items-center justify-between p-2 bg-muted/50 rounded-md text-sm mb-4">
-      <div className="flex items-center gap-2">
-        {status === 'syncing' && (
-          <>
-            <Loader2 className="h-4 w-4 animate-spin text-primary" />
-            <span>Syncing calendar events...</span>
-          </>
+    <Card className="mb-6 p-4 relative overflow-hidden">
+      <div className="flex flex-col">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center space-x-2">
+            <h3 className="text-base font-medium">Calendar Sync Status</h3>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger>
+                  <Info className="h-4 w-4 text-muted-foreground" />
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <p className="max-w-xs">
+                    This tracks the syncing status of your workouts with Google Calendar. 
+                    Any errors will be automatically retried.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleRefresh}
+              disabled={refreshing || loading}
+              className="h-8 px-2"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
+              <span className="ml-1">Refresh</span>
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setExpanded(!expanded)}
+              className="h-8 px-2 text-muted-foreground"
+            >
+              {expanded ? "Hide Details" : "Show Details"}
+            </Button>
+          </div>
+        </div>
+        
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-sm text-muted-foreground">
+            {loading ? "Loading..." : `${syncCounts.synced} of ${syncCounts.total} events synced with Google Calendar`}
+          </span>
+          <span className="text-sm font-medium">
+            {syncedPercentage}%
+          </span>
+        </div>
+        
+        <Progress value={syncedPercentage} className="h-2" />
+        
+        {expanded && !loading && (
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="flex items-center justify-between border rounded-md p-2 bg-muted/50">
+              <div className="flex items-center">
+                <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 mr-2">
+                  <RefreshCw className="h-3.5 w-3.5 text-blue-600" />
+                </div>
+                <span className="text-sm font-medium">Pending</span>
+              </div>
+              <span className="text-sm">{syncCounts.pending}</span>
+            </div>
+            
+            <div className="flex items-center justify-between border rounded-md p-2 bg-muted/50">
+              <div className="flex items-center">
+                <div className="flex items-center justify-center w-6 h-6 rounded-full bg-green-100 mr-2">
+                  <Check className="h-3.5 w-3.5 text-green-600" />
+                </div>
+                <span className="text-sm font-medium">Synced</span>
+              </div>
+              <span className="text-sm">{syncCounts.synced}</span>
+            </div>
+            
+            <div className="flex items-center justify-between border rounded-md p-2 bg-muted/50">
+              <div className="flex items-center">
+                <div className="flex items-center justify-center w-6 h-6 rounded-full bg-red-100 mr-2">
+                  <X className="h-3.5 w-3.5 text-red-600" />
+                </div>
+                <span className="text-sm font-medium">Errors</span>
+              </div>
+              <span className="text-sm">{syncCounts.error}</span>
+            </div>
+          </div>
         )}
         
-        {status === 'synced' && (
-          <>
-            <CheckCircle2 className="h-4 w-4 text-green-500" />
-            <span>All events synced with Google Calendar</span>
-          </>
-        )}
-        
-        {status === 'error' && (
-          <>
-            <AlertTriangle className="h-4 w-4 text-amber-500" />
-            <span>
-              {pendingCount > 0 
-                ? `${pendingCount} event${pendingCount > 1 ? 's' : ''} need${pendingCount === 1 ? 's' : ''} to be synced`
-                : 'Error syncing with Google Calendar'}
-            </span>
-          </>
+        {expanded && syncCounts.error > 0 && (
+          <div className="mt-3 flex items-start p-3 border rounded-md bg-yellow-50 border-yellow-200">
+            <AlertCircle className="h-5 w-5 text-yellow-500 mr-2 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-yellow-800">Some events failed to sync</p>
+              <p className="text-xs text-yellow-700 mt-1">
+                We'll automatically retry syncing these events with Google Calendar. 
+                Check your calendar permissions if this persists.
+              </p>
+            </div>
+          </div>
         )}
       </div>
-      
-      {(status === 'error' || pendingCount > 0) && (
-        <Button 
-          size="sm" 
-          variant="outline" 
-          className="h-8 flex items-center gap-1"
-          onClick={handleResync}
-          disabled={status === 'syncing'}
-        >
-          <RefreshCw className="h-3.5 w-3.5" />
-          {status === 'syncing' ? 'Syncing...' : 'Sync now'}
-        </Button>
-      )}
-    </div>
+    </Card>
   );
 }

@@ -94,8 +94,7 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
             user.firebaseUid,
             workoutName,
             startTime,
-            endTime,
-            workoutId
+            endTime
           );
           console.log("Created pending event in Firestore:", tempEventId);
         }
@@ -278,7 +277,7 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
     event.preventDefault();
     event.stopPropagation();
     
-    if (!activeWorkout || !selectedTimeSlot) {
+    if (!workout || !selectedTimeSlot) {
       toast({
         title: "Error",
         description: "Please select a workout and time slot",
@@ -286,6 +285,9 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
       });
       return;
     }
+    
+    // Get active workout (we've already checked it exists)
+    const activeWorkout = workout;
     
     try {
       const selectedSlot = availableSlots.find(slot => slot.start === selectedTimeSlot);
@@ -314,6 +316,9 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
   const handleRecurringSuccess = (events: any) => {
     setScheduledEvents(events);
     
+    // Get active workout (either from currentlySelectedWorkout or workout prop)
+    const activeWorkout = (currentlySelectedWorkout || workout)!;
+    
     // Different message based on how many events were created
     if (events.length === 0) {
       toast({
@@ -324,7 +329,7 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
     } else {
       toast({
         title: "Recurring workouts scheduled!",
-        description: `Successfully scheduled ${events.length} occurrences of ${activeWorkout.name}`,
+        description: `Successfully scheduled ${events.length} occurrences of ${activeWorkout?.name || "workout"}`,
         variant: "default",
       });
       
