@@ -507,7 +507,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
         duration
       );
       
-      res.status(200).json(availableSlots);
+      // Check if learning mode is enabled
+      const learningEnabled = userPrefs?.learningEnabled !== false; // Default to true if not set
+      
+      if (learningEnabled) {
+        try {
+          // Add intelligent ranking to the slots
+          // Collecting adjacent meeting slots for better scheduling
+          const adjacentMeetingSlots: string[] = [];
+          
+          // Gather all slot stats first
+          const slotStatsPromises = availableSlots.map(slot => {
+            const startDate = new Date(slot.start);
+            const slotId = `${startDate.getDay()}_${startDate.getHours().toString().padStart(2, '0')}`;
+            return storage.getSlotStat(userId, slotId);
+          });
+          
+          const slotStatsResults = await Promise.all(slotStatsPromises);
+          
+          // Now process the slots with their stats
+          const rankedSlots = availableSlots.map((slot, index) => {
+            const startDate = new Date(slot.start);
+            const slotStats = slotStatsResults[index];
+            
+            let score = 5; // Base score
+            let isRecommended = false;
+            
+            if (slotStats) {
+              // Calculate score based on historical data
+              const scheduledCount = slotStats.totalScheduled || 0;
+              score = Math.min(10, scheduledCount);
+              
+              const successRate = slotStats.successRate || 0;
+              if (successRate > 50) {
+                score += 5; // Bonus for high success rate
+                isRecommended = true;
+              }
+              
+              const cancelCount = slotStats.totalCancelled || 0;
+              if (cancelCount > 2) {
+                score -= 3; // Penalty for frequently cancelled slots
+                isRecommended = false;
+              }
+            }
+            
+            return {
+              ...slot,
+              score,
+              isRecommended
+            };
+          });
+          
+          // Sort by score, highest first
+          rankedSlots.sort((a, b) => (b.score || 0) - (a.score || 0));
+          
+          // Mark top slots as recommended if not already marked
+          if (rankedSlots.length > 0 && !rankedSlots.some(s => s.isRecommended)) {
+            // Mark top 2 as recommended if they have decent scores
+            for (let i = 0; i < Math.min(2, rankedSlots.length); i++) {
+              const slot = rankedSlots[i];
+              if ((slot.score || 0) >= 5) {
+                slot.isRecommended = true;
+              }
+            }
+          }
+          
+          res.status(200).json(rankedSlots);
+        } catch (error) {
+          console.error('Error ranking time slots:', error);
+          // Fall back to unranked slots if there's an error in the ranking process
+          res.status(200).json(availableSlots);
+        }
+      } else {
+        // Return slots without ranking if learning mode is disabled
+        res.status(200).json(availableSlots);
+      }
     } catch (error) {
       // Log detailed error for developers - retain this for troubleshooting
       console.error('Error finding available slots:', error);
@@ -1088,6 +1162,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({
         success: false,
         message: 'Failed to record slot activity. Please try again.'
+      });
+    }
+  });
+  
+  // Reset all slot statistics (for admin/testing purposes)
+  app.post('/api/slot-stats/reset', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session.userId as number;
+      
+      // For a real production app, we would check if the user is an admin
+      // For now, we'll allow any authenticated user to reset their own stats
+      
+      // Get all slot stats for this user
+      const slotStats = await storage.getSlotStats(userId);
+      
+      // Delete each slot stat
+      for (const stat of slotStats) {
+        await storage.deleteSlotStat(stat.id);
+      }
+      
+      res.status(200).json({
+        success: true,
+        message: 'All learning mode statistics have been reset'
+      });
+    } catch (error) {
+      console.error('Error resetting slot stats:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to reset learning mode statistics. Please try again.'
+      });
+    }
+  });
+  
+  // Reset a specific slot stat (for admin/testing purposes)
+  app.post('/api/slot-stats/:id/reset', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session.userId as number;
+      const statId = parseInt(req.params.id);
+      
+      if (isNaN(statId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid slot stat ID'
+        });
+      }
+      
+      // Get the slot stat to verify it belongs to this user
+      const slotStat = await storage.getSlotStat(statId);
+      
+      if (!slotStat) {
+        return res.status(404).json({
+          success: false,
+          message: 'Slot stat not found'
+        });
+      }
+      
+      // Check if this slot stat belongs to the current user
+      if (slotStat.userId !== userId) {
+        return res.status(403).json({
+          success: false,
+          message: 'You do not have permission to reset this slot stat'
+        });
+      }
+      
+      // Delete the slot stat
+      const deleted = await storage.deleteSlotStat(statId);
+      
+      if (!deleted) {
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to reset the slot stat'
+        });
+      }
+      
+      res.status(200).json({
+        success: true,
+        message: 'Slot stat has been reset'
+      });
+    } catch (error) {
+      console.error('Error resetting slot stat:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to reset the slot stat. Please try again.'
       });
     }
   });

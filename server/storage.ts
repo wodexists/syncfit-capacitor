@@ -43,9 +43,11 @@ export interface IStorage {
   
   // Slot statistics operations
   getSlotStat(userId: number, slotId: string): Promise<SlotStat | undefined>;
+  getSlotStat(id: number): Promise<SlotStat | undefined>;
   getSlotStats(userId: number): Promise<SlotStat[]>;
   createSlotStat(slotStat: InsertSlotStat): Promise<SlotStat>;
   updateSlotStat(id: number, updates: Partial<InsertSlotStat>): Promise<SlotStat | undefined>;
+  deleteSlotStat(id: number): Promise<boolean>;
   
   // Data initialization (optional)
   initializeData?(): Promise<void>;

@@ -435,9 +435,12 @@ export class FirestoreStorage implements IStorage {
       
       if (existingStat) {
         // Update the existing stat with incremented values
+        const totalScheduled = (existingStat.totalScheduled || 0) + 1;
+        const now = new Date();
+        
         return await this.updateSlotStat(existingStat.id, {
-          totalScheduled: existingStat.totalScheduled + 1,
-          lastUsed: new Date().toISOString()
+          totalScheduled,
+          lastUsed: now
         });
       }
       
@@ -446,6 +449,7 @@ export class FirestoreStorage implements IStorage {
       const id = countSnapshot.data().count + 1;
       
       // Create new slot stat
+      const now = new Date();
       const newSlotStat: SlotStat = {
         id,
         userId: slotStat.userId,
@@ -454,10 +458,14 @@ export class FirestoreStorage implements IStorage {
         totalCompleted: 0,
         totalCancelled: 0,
         successRate: 0,
-        lastUsed: new Date().toISOString()
+        lastUsed: now
       };
       
-      await this.db.collection('slot_stats').doc(id.toString()).set(newSlotStat);
+      await this.db.collection('slot_stats').doc(id.toString()).set({
+        ...newSlotStat,
+        lastUsed: now.toISOString() // Convert Date to string for Firestore
+      });
+      
       return newSlotStat;
     } catch (error) {
       console.error('Error creating slot stat:', error);
@@ -475,15 +483,38 @@ export class FirestoreStorage implements IStorage {
       }
       
       const existingStat = { ...doc.data() } as SlotStat;
-      const updatedStat = { ...existingStat, ...updates };
+      
+      // Convert lastUsed date if present
+      let lastUsedDate: Date | null = null;
+      if (updates.lastUsed instanceof Date) {
+        lastUsedDate = updates.lastUsed;
+        // Create a new object without the Date instance for Firestore
+        updates = { 
+          ...updates, 
+          lastUsed: updates.lastUsed.toISOString() 
+        };
+      }
+      
+      const updatedStat: SlotStat = { 
+        ...existingStat,
+        ...updates,
+        // Restore the Date object for our return value
+        lastUsed: lastUsedDate || existingStat.lastUsed
+      };
       
       // Calculate success rate if we have completions or cancellations
       if ('totalCompleted' in updates || 'totalCancelled' in updates) {
-        const total = updatedStat.totalCompleted + updatedStat.totalCancelled;
-        updatedStat.successRate = total > 0 ? updatedStat.totalCompleted / total : 0;
+        const completedCount = updatedStat.totalCompleted || 0;
+        const cancelledCount = updatedStat.totalCancelled || 0;
+        const total = completedCount + cancelledCount;
+        
+        // Calculate percentage success rate (0-100)
+        const successRate = total > 0 ? Math.round((completedCount / total) * 100) : 0;
+        updatedStat.successRate = successRate;
+        updates = { ...updates, successRate };
       }
       
-      await slotStatRef.update(updatedStat);
+      await slotStatRef.update(updates);
       return updatedStat;
     } catch (error) {
       console.error('Error updating slot stat:', error);
