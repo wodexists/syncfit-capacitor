@@ -57,6 +57,12 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
   const [isScheduling, setIsScheduling] = useState<boolean>(false);
   // State for success celebration animation
   const [showCelebration, setShowCelebration] = useState<boolean>(false);
+  // State for time horizon selection (days to look ahead)
+  const [timeHorizon, setTimeHorizon] = useState<number>(1); // Default to 1 day (today)
+  // State for tracking server timestamp of slots
+  const [slotsTimestamp, setSlotsTimestamp] = useState<number>(0);
+  // State for tracking if no slots are available in the current time horizon
+  const [noSlotsAvailable, setNoSlotsAvailable] = useState<boolean>(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -352,62 +358,99 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
     }
   });
 
-  // Keep track of the slots timestamp for validation
-  const [slotsTimestamp, setSlotsTimestamp] = useState<number>(0);
+  // No need to redeclare slotsTimestamp - already defined above
 
-  // Fetch available time slots when modal opens or workout changes
-  useEffect(() => {
-    const fetchTimeSlots = async () => {
-      if (workout) {
-        // Get user's time horizon preference if available
-        const userPrefsResponse = await apiRequest('GET', '/api/user-preferences');
-        let timeHorizon = 1; // Default to searching today only
+  // Handler for changing time horizon
+  const handleChangeTimeHorizon = (days: number) => {
+    // Don't refetch if already fetching the same horizon
+    if (days === timeHorizon) return;
+    
+    setTimeHorizon(days);
+    fetchTimeSlots(days);
+  };
+
+  // Define the fetchTimeSlots function outside useEffect to reuse it
+  const fetchTimeSlots = async (days?: number) => {
+    if (!workout) return;
+    
+    setAvailableSlots([]); // Clear slots while loading
+    setNoSlotsAvailable(false);
+    const horizon = days || timeHorizon;
+    
+    try {
+      // Show loading indicator
+      toast({
+        title: horizon > 1 ? `Checking the next ${horizon} days` : "Checking today's availability",
+        description: "Finding the best times for your workout...",
+        variant: "default",
+      });
+      
+      // Get raw time slots from the API with time horizon
+      const slotsResponse = await findAvailableTimeSlots(new Date(), workout.duration, horizon);
+      const slots = slotsResponse.slots;
+      
+      // Store the timestamp for validation during booking
+      setSlotsTimestamp(slotsResponse.timestamp);
+      
+      try {
+        // Check if learning mode is enabled
+        const learningModeResult = await getLearningModeSetting();
+        const learningEnabled = learningModeResult.success && learningModeResult.enabled;
         
-        try {
-          const userPrefs = await userPrefsResponse.json();
-          if (userPrefs && userPrefs.defaultTimeHorizon) {
-            timeHorizon = parseInt(userPrefs.defaultTimeHorizon);
-          }
-        } catch (error) {
-          console.error('Error parsing user preferences:', error);
+        // Identify slots with adjacent meetings (not implemented yet)
+        const adjacentMeetingSlots: string[] = [];
+        
+        let finalSlots = slots;
+        if (learningEnabled) {
+          // If learning mode is enabled, rank the slots
+          finalSlots = await rankTimeSlots(slots, learningEnabled, adjacentMeetingSlots);
         }
         
-        // Get raw time slots from the API with time horizon
-        const slotsResponse = await findAvailableTimeSlots(new Date(), workout.duration, timeHorizon);
-        const slots = slotsResponse.slots;
+        // Set the noSlotsAvailable flag if we found no slots
+        setNoSlotsAvailable(finalSlots.length === 0);
         
-        // Store the timestamp for validation during booking
-        setSlotsTimestamp(slotsResponse.timestamp);
-        
-        try {
-          // Check if learning mode is enabled
-          const learningModeResult = await getLearningModeSetting();
-          const learningEnabled = learningModeResult.success && learningModeResult.enabled;
-          
-          // Identify slots with adjacent meetings (not implemented yet)
-          const adjacentMeetingSlots: string[] = [];
-          
-          if (learningEnabled) {
-            // If learning mode is enabled, rank the slots
-            const rankedSlots = await rankTimeSlots(slots, learningEnabled, adjacentMeetingSlots);
-            setAvailableSlots(rankedSlots);
-          } else {
-            // Otherwise use the slots as-is
-            setAvailableSlots(slots);
-          }
-        } catch (error) {
-          console.error('Error in intelligent scheduling:', error);
-          // Fallback to unranked slots
-          setAvailableSlots(slots);
-        }
+        // Set the available slots
+        setAvailableSlots(finalSlots);
         
         // Select first time slot by default
+        if (finalSlots.length > 0) {
+          setSelectedTimeSlot(finalSlots[0].start);
+        } else if (horizon === 1) {
+          // If no slots for today, suggest checking more days
+          toast({
+            title: "No slots today",
+            description: "Today looks fully booked. Try checking the next few days.",
+            variant: "default",
+          });
+        } else if (finalSlots.length === 0) {
+          toast({
+            title: "Calendar fully booked",
+            description: `No available slots found in the next ${horizon} days. Try a different time horizon or workout duration.`,
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        console.error('Error in intelligent scheduling:', error);
+        // Fallback to unranked slots
+        setAvailableSlots(slots);
+        
+        // Select first time slot by default if available
         if (slots.length > 0) {
           setSelectedTimeSlot(slots[0].start);
         }
       }
-    };
-    
+    } catch (error) {
+      console.error('Error fetching time slots:', error);
+      toast({
+        title: "Error fetching availability",
+        description: "We couldn't retrieve your calendar availability. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  // Fetch available time slots when modal opens or workout changes
+  useEffect(() => {
     if (isOpen) {
       fetchTimeSlots();
       // Reset state when modal opens
@@ -727,21 +770,56 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
           </div>
         </div>
         
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="font-medium">Available Time Slots</h3>
-          <div className="flex items-center text-xs text-muted-foreground">
-            <Brain className="h-4 w-4 mr-1 text-primary" />
-            <span>Smart Recommendations</span>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Info className="h-3.5 w-3.5 ml-1 text-gray-400" />
-                </TooltipTrigger>
-                <TooltipContent side="left" className="max-w-[250px] text-xs">
-                  <p>Chosen based on your recent scheduling patterns and calendar availability.</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+        <div className="space-y-3 mb-2">
+          <div className="flex items-center justify-between">
+            <h3 className="font-medium">Available Time Slots</h3>
+            <div className="flex items-center text-xs text-muted-foreground">
+              <Brain className="h-4 w-4 mr-1 text-primary" />
+              <span>Smart Recommendations</span>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-3.5 w-3.5 ml-1 text-gray-400" />
+                  </TooltipTrigger>
+                  <TooltipContent side="left" className="max-w-[250px] text-xs">
+                    <p>Chosen based on your recent scheduling patterns and calendar availability.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+          </div>
+          
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-muted-foreground">Looking for time in:</div>
+            <div className="flex space-x-2">
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleChangeTimeHorizon(1);
+                }}
+                className={`text-xs px-2 py-1 rounded ${timeHorizon === 1 ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'}`}
+              >
+                Today
+              </button>
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleChangeTimeHorizon(2);
+                }}
+                className={`text-xs px-2 py-1 rounded ${timeHorizon === 2 ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'}`}
+              >
+                Next 2 Days
+              </button>
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleChangeTimeHorizon(7);
+                }}
+                className={`text-xs px-2 py-1 rounded ${timeHorizon === 7 ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'}`}
+              >
+                Next Week
+              </button>
+            </div>
           </div>
         </div>
         

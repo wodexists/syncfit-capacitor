@@ -165,12 +165,12 @@ export function SyncStatus() {
             {loading ? (
               <span className="flex items-center text-amber-600">
                 <RefreshCw className="h-3.5 w-3.5 animate-spin mr-1" /> 
-                Syncing...
+                Syncing events with Google Calendar...
               </span>
             ) : syncCounts.error > 0 ? (
               <span className="flex items-center text-red-600">
                 <AlertCircle className="h-3.5 w-3.5 mr-1" /> 
-                Error syncing {syncCounts.error} {syncCounts.error === 1 ? 'event' : 'events'} – <Button variant="link" className="p-0 h-auto text-red-600 underline" onClick={handleRetry}>Retry</Button>
+                Error syncing {syncCounts.error} {syncCounts.error === 1 ? 'event' : 'events'} – <Button variant="link" className="p-0 h-auto text-red-600 underline" onClick={handleRetry}>Retry Now</Button>
               </span>
             ) : syncCounts.total === 0 ? (
               <span className="flex items-center text-slate-600">
@@ -199,6 +199,21 @@ export function SyncStatus() {
             'bg-green-100'
           }`} 
         />
+        
+        {/* Show a mini diagnostic log when syncing is in progress */}
+        {loading && (
+          <div className="mt-2 text-xs bg-amber-50 border border-amber-200 rounded-md p-2">
+            <div className="flex items-center text-amber-800 font-medium mb-1">
+              <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+              Sync in progress
+            </div>
+            <div className="text-amber-700 space-y-1">
+              <p>• Checking for pending events</p>
+              <p>• Verifying Google Calendar access</p>
+              <p>• Syncing new workouts</p>
+            </div>
+          </div>
+        )}
         
         {/* Last Synced Timestamp */}
         {syncCounts.lastSyncedAt && (
@@ -276,7 +291,29 @@ export function SyncStatus() {
                     We'll automatically retry syncing these events with Google Calendar. 
                     Check your calendar permissions if this persists.
                   </p>
-                  <div className="mt-2 flex justify-end">
+                  
+                  <div className="bg-yellow-100 p-2 rounded-md mt-2 text-xs text-yellow-800">
+                    <p className="font-medium mb-1">Diagnostic Information:</p>
+                    <div className="space-y-0.5">
+                      <p>• Google Calendar API may be temporarily unavailable</p>
+                      <p>• Your Google Calendar permission may need to be refreshed</p>
+                      <p>• Network connectivity issues might be affecting synchronization</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-between mt-2 items-center">
+                    <Button 
+                      variant="outline"
+                      size="sm" 
+                      className="h-7 text-xs"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        window.open('https://calendar.google.com', '_blank');
+                      }}
+                    >
+                      Check Google Calendar
+                    </Button>
+                    
                     <Button 
                       size="sm" 
                       className="h-7 text-xs"
@@ -303,15 +340,68 @@ export function SyncStatus() {
             {syncCounts.conflict > 0 && (
               <div className="flex items-start p-3 border rounded-md bg-amber-50 border-amber-200">
                 <AlertTriangle className="h-5 w-5 text-amber-500 mr-2 flex-shrink-0 mt-0.5" />
-                <div>
+                <div className="flex-1">
                   <p className="text-sm font-medium text-amber-800">Calendar conflicts detected</p>
                   <p className="text-xs text-amber-700 mt-1">
                     Some events in your Google Calendar have been modified outside of SyncFit. 
                     These modifications won't be automatically overwritten.
                   </p>
+                  
+                  <div className="bg-amber-100 p-2 rounded-md mt-2 text-xs text-amber-800">
+                    <p className="font-medium mb-1">Possible Causes:</p>
+                    <div className="space-y-0.5">
+                      <p>• Event was edited directly in Google Calendar</p>
+                      <p>• Another app modified your calendar events</p>
+                      <p>• Event time was changed due to timezone differences</p>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-2 flex justify-end">
+                    <Button 
+                      variant="outline"
+                      size="sm" 
+                      className="h-7 text-xs"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        window.open('https://calendar.google.com', '_blank');
+                      }}
+                    >
+                      View in Google Calendar
+                    </Button>
+                  </div>
                 </div>
               </div>
             )}
+          </div>
+        )}
+        
+        {/* Developer Diagnostics Panel (only shown in expanded mode) */}
+        {expanded && (
+          <div className="mt-3 border-t pt-3">
+            <button 
+              onClick={(e) => {
+                e.preventDefault();
+                const elem = document.getElementById('syncfit-diagnostics');
+                if (elem) {
+                  elem.style.display = elem.style.display === 'none' ? 'block' : 'none';
+                }
+              }}
+              className="text-xs flex items-center text-slate-600 hover:text-slate-900"
+            >
+              <Info className="h-3.5 w-3.5 mr-1" />
+              Toggle Developer Diagnostics
+            </button>
+            
+            <div id="syncfit-diagnostics" className="mt-2 bg-slate-50 border border-slate-200 rounded-md p-2 text-xs font-mono hidden">
+              <p className="font-medium text-slate-700 mb-1">Sync State Diagnostic Log:</p>
+              <div className="space-y-0.5 text-slate-600 max-h-32 overflow-y-auto">
+                <p>Last API Call: {new Date().toISOString()}</p>
+                <p>Auth Status: {isAuthenticated ? 'Authenticated' : 'Not Authenticated'}</p>
+                <p>Sync Counts: {JSON.stringify(syncCounts)}</p>
+                <p>User ID: {user?.firebaseUid || 'Unknown'}</p>
+                <p>Pending Retries: {syncCounts.error}</p>
+              </div>
+            </div>
           </div>
         )}
       </div>
