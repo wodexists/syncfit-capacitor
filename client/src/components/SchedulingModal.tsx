@@ -20,7 +20,10 @@ import {
   Loader2,
   Star,
   Sparkles,
-  Brain
+  Brain,
+  Sun,
+  Utensils,
+  Moon
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import RecurringWorkoutForm from "./RecurringWorkoutForm";
@@ -703,33 +706,74 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
               {availableSlots.map((slot, index) => {
                 const startDate = new Date(slot.start);
                 const endDate = new Date(slot.end);
-                const timeRangeText = formatDateTimeRange(startDate, endDate);
+                const hour = startDate.getHours();
                 const isRecommended = slot.isRecommended === true;
                 const hasScore = typeof slot.score !== 'undefined';
+                
+                // Get appropriate time icon
+                let TimeIcon = Sun;
+                if (hour >= 12 && hour < 17) {
+                  TimeIcon = Utensils;
+                } else if (hour >= 17) {
+                  TimeIcon = Moon;
+                }
+                
+                // Get day label (either from slot or calculate it)
+                const dayLabel = slot.day || (slot.daysFromNow ? (
+                  slot.daysFromNow === 0 ? 'Today' : 
+                  slot.daysFromNow === 1 ? 'Tomorrow' : 
+                  startDate.toLocaleDateString(undefined, { weekday: 'long' })
+                ) : 'Today');
+                
+                // Format the time only (not date) for display
+                const timeOnly = startDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) +
+                  ' – ' + endDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
                 
                 return (
                   <div 
                     key={index} 
-                    className={`calendar-time-slot border rounded-md p-2 flex items-center hover:bg-muted 
+                    className={`calendar-time-slot border rounded-md p-3 flex items-center hover:bg-muted 
                       ${isRecommended ? 'border-primary bg-primary/5' : ''}
                     `}
                   >
                     <RadioGroupItem value={slot.start} id={`slot-${index}`} className="mr-2" />
                     <Label htmlFor={`slot-${index}`} className="text-sm flex-grow cursor-pointer">
+                      {/* Time section with day label */}
                       <div className="flex items-center justify-between">
-                        <span>{timeRangeText}</span>
+                        <div className="flex items-center gap-2">
+                          <div className={`p-1.5 rounded-full 
+                            ${dayLabel === 'Today' ? 'bg-green-100' : 
+                              dayLabel === 'Tomorrow' ? 'bg-blue-100' : 'bg-amber-100'}`}>
+                            <TimeIcon className={`h-3.5 w-3.5 
+                              ${dayLabel === 'Today' ? 'text-green-600' : 
+                                dayLabel === 'Tomorrow' ? 'text-blue-600' : 'text-amber-600'}`} />
+                          </div>
+                          <div>
+                            <div className="font-medium">{timeOnly}</div>
+                            <div className="text-xs text-muted-foreground">{dayLabel}</div>
+                          </div>
+                        </div>
+                        
                         {isRecommended && (
-                          <div className="flex items-center gap-1 text-primary text-xs font-medium">
-                            <Sparkles className="h-3.5 w-3.5" />
-                            Recommended
+                          <div className="flex items-center gap-1 text-primary text-xs font-medium bg-primary/10 px-2 py-1 rounded-full">
+                            <Brain className="h-3.5 w-3.5" />
+                            <span>Recommended</span>
                           </div>
                         )}
                       </div>
-                      <div className="flex items-center justify-between">
-                        {slot.label && <div className="text-xs text-muted-foreground">{slot.label}</div>}
-                        {hasScore && (
-                          <div className="text-xs text-muted-foreground">
-                            {(slot.score ?? 0) > 7 ? '✦ Optimal' : (slot.score ?? 0) > 5 ? '○ Good' : ''}
+                      
+                      {/* Additional slot info */}
+                      <div className="flex items-center justify-between mt-1.5">
+                        {slot.label && (
+                          <div className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            {slot.label}
+                          </div>
+                        )}
+                        {hasScore && (slot.score ?? 0) > 5 && (
+                          <div className="text-xs text-primary flex items-center gap-1">
+                            <Star className="h-3 w-3 fill-primary" />
+                            {(slot.score ?? 0) > 7 ? 'Optimal time' : 'Good time'}
                           </div>
                         )}
                       </div>

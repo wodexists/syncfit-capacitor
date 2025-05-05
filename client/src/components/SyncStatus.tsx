@@ -161,15 +161,44 @@ export function SyncStatus() {
         </div>
         
         <div className="flex items-center justify-between mb-1">
-          <span className="text-sm text-muted-foreground">
-            {loading ? "Loading..." : `${syncCounts.synced} of ${syncCounts.total} events synced with Google Calendar`}
+          <span className="text-sm font-medium flex items-center">
+            {loading ? (
+              <span className="flex items-center text-amber-600">
+                <RefreshCw className="h-3.5 w-3.5 animate-spin mr-1" /> 
+                Syncing...
+              </span>
+            ) : syncCounts.error > 0 ? (
+              <span className="flex items-center text-red-600">
+                <AlertCircle className="h-3.5 w-3.5 mr-1" /> 
+                Error syncing {syncCounts.error} {syncCounts.error === 1 ? 'event' : 'events'} – <Button variant="link" className="p-0 h-auto text-red-600 underline" onClick={handleRetry}>Retry</Button>
+              </span>
+            ) : syncCounts.total === 0 ? (
+              <span className="flex items-center text-slate-600">
+                <Info className="h-3.5 w-3.5 mr-1" /> 
+                No events to sync
+              </span>
+            ) : (
+              <span className="flex items-center text-green-600">
+                <Check className="h-3.5 w-3.5 mr-1" /> 
+                Synced successfully ({syncCounts.synced} {syncCounts.synced === 1 ? 'event' : 'events'})
+              </span>
+            )}
           </span>
-          <span className="text-sm font-medium">
-            {syncedPercentage}%
-          </span>
+          {syncCounts.total > 0 && (
+            <span className="text-sm font-medium">
+              {syncedPercentage}%
+            </span>
+          )}
         </div>
         
-        <Progress value={syncedPercentage} className="h-2" />
+        <Progress 
+          value={syncedPercentage} 
+          className={`h-2 ${
+            loading ? 'bg-amber-100' : 
+            syncCounts.error > 0 ? 'bg-red-100' : 
+            'bg-green-100'
+          }`} 
+        />
         
         {/* Last Synced Timestamp */}
         {syncCounts.lastSyncedAt && (

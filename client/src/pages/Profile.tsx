@@ -441,6 +441,37 @@ export default function Profile({ user }: ProfileProps) {
                     )}
                   />
 
+                  <FormField
+                    control={form.control}
+                    name="defaultTimeHorizon"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Default Search Time Horizon</FormLabel>
+                        <Select 
+                          onValueChange={field.onChange} 
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="w-full md:w-1/3">
+                              <SelectValue placeholder="Select time horizon" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="1">Today only</SelectItem>
+                            <SelectItem value="2">Up to 2 days</SelectItem>
+                            <SelectItem value="3">Up to 3 days</SelectItem>
+                            <SelectItem value="5">Up to 5 days</SelectItem>
+                            <SelectItem value="7">Up to a week</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>
+                          How many days ahead should we look for workout slots if today is too busy?
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
                   <Separator />
 
                   <div className="flex justify-end">
