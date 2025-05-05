@@ -3,7 +3,8 @@ import {
   workouts, Workout, InsertWorkout,
   workoutCategories, WorkoutCategory, InsertWorkoutCategory,
   scheduledWorkouts, ScheduledWorkout, InsertScheduledWorkout,
-  userPreferences, UserPreference, InsertUserPreference
+  userPreferences, UserPreference, InsertUserPreference,
+  slotStats, SlotStat, InsertSlotStat
 } from "@shared/schema";
 import { FirestoreStorage } from './firestore';
 
@@ -39,6 +40,12 @@ export interface IStorage {
   getUserPreferences(userId: number): Promise<UserPreference | undefined>;
   createUserPreferences(preferences: InsertUserPreference): Promise<UserPreference>;
   updateUserPreferences(userId: number, updates: Partial<InsertUserPreference>): Promise<UserPreference | undefined>;
+  
+  // Slot statistics operations
+  getSlotStat(userId: number, slotId: string): Promise<SlotStat | undefined>;
+  getSlotStats(userId: number): Promise<SlotStat[]>;
+  createSlotStat(slotStat: InsertSlotStat): Promise<SlotStat>;
+  updateSlotStat(id: number, updates: Partial<InsertSlotStat>): Promise<SlotStat | undefined>;
   
   // Data initialization (optional)
   initializeData?(): Promise<void>;

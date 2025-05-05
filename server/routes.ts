@@ -907,5 +907,190 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  /**
+   * Learning Mode Routes
+   */
+  // Get learning mode preferences
+  app.get('/api/learning-mode', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session.userId as number;
+      const userPrefs = await storage.getUserPreferences(userId);
+      
+      // Default to enabled if no preference exists
+      const learningEnabled = userPrefs?.learningEnabled !== false;
+      const lastLearningChange = userPrefs?.lastLearningChange || null;
+      
+      res.status(200).json({ 
+        success: true,
+        learningEnabled,
+        lastLearningChange
+      });
+    } catch (error) {
+      console.error('Error getting learning mode preferences:', error);
+      res.status(500).json({ 
+        success: false,
+        message: 'Failed to get learning mode preferences. Please try again.' 
+      });
+    }
+  });
+  
+  // Update learning mode preferences
+  app.post('/api/learning-mode', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session.userId as number;
+      const { enabled } = req.body;
+      
+      if (typeof enabled !== 'boolean') {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid request: enabled must be a boolean'
+        });
+      }
+      
+      // Get existing preferences or create new ones
+      let userPrefs = await storage.getUserPreferences(userId);
+      
+      if (!userPrefs) {
+        userPrefs = await storage.createUserPreferences({
+          userId,
+          learningEnabled: enabled,
+          lastLearningChange: new Date()
+        });
+      } else {
+        userPrefs = await storage.updateUserPreferences(userId, {
+          learningEnabled: enabled,
+          lastLearningChange: new Date()
+        }) || userPrefs;
+      }
+      
+      res.status(200).json({
+        success: true,
+        message: `Learning mode ${enabled ? 'enabled' : 'disabled'} successfully`,
+        learningEnabled: userPrefs.learningEnabled
+      });
+    } catch (error) {
+      console.error('Error updating learning mode preferences:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to update learning mode preferences. Please try again.'
+      });
+    }
+  });
+  
+  // Get slot statistics
+  app.get('/api/slot-stats', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session.userId as number;
+      
+      // Check if learning mode is enabled
+      const userPrefs = await storage.getUserPreferences(userId);
+      if (userPrefs?.learningEnabled === false) {
+        return res.status(200).json({
+          success: true,
+          message: 'Learning mode is disabled',
+          slotStats: []
+        });
+      }
+      
+      // Get all slot stats for user
+      const slotStats = await storage.getSlotStats(userId);
+      
+      res.status(200).json({
+        success: true,
+        slotStats
+      });
+    } catch (error) {
+      console.error('Error getting slot stats:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to get slot statistics. Please try again.'
+      });
+    }
+  });
+  
+  // Record slot activity (scheduled, cancelled, completed)
+  app.post('/api/slot-stats/record', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session.userId as number;
+      const { slotId, action } = req.body;
+      
+      if (!slotId || !action) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid request: slotId and action are required'
+        });
+      }
+      
+      if (!['scheduled', 'cancelled', 'completed'].includes(action)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid action: must be 'scheduled', 'cancelled', or 'completed'"
+        });
+      }
+      
+      // Check if learning mode is enabled
+      const userPrefs = await storage.getUserPreferences(userId);
+      if (userPrefs?.learningEnabled === false) {
+        return res.status(200).json({
+          success: true,
+          message: 'Learning mode is disabled, not recording stats'
+        });
+      }
+      
+      // Get existing slot stat or create new one
+      const slotStat = await storage.getSlotStat(userId, slotId);
+      
+      if (!slotStat) {
+        // Create new slot stat with initial values
+        const newSlotStat = {
+          userId,
+          slotId,
+          totalScheduled: action === 'scheduled' ? 1 : 0,
+          totalCancelled: action === 'cancelled' ? 1 : 0,
+          totalCompleted: action === 'completed' ? 1 : 0,
+          successRate: action === 'scheduled' || action === 'completed' ? 100 : 0,
+          lastUsed: new Date()
+        };
+        
+        await storage.createSlotStat(newSlotStat);
+      } else {
+        // Update existing slot stat
+        const updates: Partial<typeof slotStat> = {
+          lastUsed: new Date()
+        };
+        
+        if (action === 'scheduled') {
+          updates.totalScheduled = (slotStat.totalScheduled || 0) + 1;
+        } else if (action === 'cancelled') {
+          updates.totalCancelled = (slotStat.totalCancelled || 0) + 1;
+        } else if (action === 'completed') {
+          updates.totalCompleted = (slotStat.totalCompleted || 0) + 1;
+        }
+        
+        // Calculate new success rate
+        const total = (slotStat.totalScheduled || 0) + (updates.totalScheduled || 0);
+        const cancelled = (slotStat.totalCancelled || 0) + (updates.totalCancelled || 0);
+        const successful = total - cancelled;
+        
+        if (total > 0) {
+          updates.successRate = Math.round((successful / total) * 100);
+        }
+        
+        await storage.updateSlotStat(slotStat.id, updates);
+      }
+      
+      res.status(200).json({
+        success: true,
+        message: `Activity recorded: ${action} for slot ${slotId}`
+      });
+    } catch (error) {
+      console.error('Error recording slot activity:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to record slot activity. Please try again.'
+      });
+    }
+  });
+
   return httpServer;
 }
