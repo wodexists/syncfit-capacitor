@@ -18,6 +18,7 @@ interface RecurringWorkoutFormProps {
   workoutName: string;
   startTime: string;
   endTime: string;
+  timestamp?: number; // Add timestamp from when slots were fetched
   onSuccess: (events: any[]) => void;
   onCancel: () => void;
 }
@@ -28,6 +29,7 @@ export default function RecurringWorkoutForm({
   workoutName,
   startTime,
   endTime,
+  timestamp,
   onSuccess,
   onCancel
 }: RecurringWorkoutFormProps) {
@@ -59,7 +61,8 @@ export default function RecurringWorkoutForm({
         endType,
         occurrences: endType === "occurrences" ? occurrences : undefined,
         endDate: endDate ? formatCalendarDate(endDate) : undefined,
-        excludedDates: excludedDates.map(d => formatCalendarDate(d))
+        excludedDates: excludedDates.map(d => formatCalendarDate(d)),
+        slotsTimestamp: timestamp // Include the timestamp when slots were fetched
       };
       
       // First create a pending event for the initial occurrence

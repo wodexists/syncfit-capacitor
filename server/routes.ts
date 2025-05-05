@@ -812,10 +812,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Google access token not available' });
       }
       
-      const { workoutName, startTime, endTime, pattern } = req.body;
+      const { workoutName, startTime, endTime, pattern, slotsTimestamp } = req.body;
       
       if (!workoutName || !startTime || !endTime || !pattern) {
         return res.status(400).json({ message: 'Missing required fields' });
+      }
+      
+      // If timestamp provided, check if it's too old
+      if (slotsTimestamp) {
+        const currentTime = Date.now();
+        const timeDifference = currentTime - slotsTimestamp;
+        const maxAge = 5 * 60 * 1000; // 5 minutes in milliseconds
+        
+        if (timeDifference > maxAge) {
+          return res.status(409).json({
+            success: false,
+            message: 'That time slot just filled up. Let\'s refresh and find you a new time that works.'
+          });
+        }
       }
       
       // Get user's reminder preferences if any
