@@ -798,12 +798,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
         eventId: createdEvent.id,
         htmlLink: createdEvent.htmlLink
       });
-    } catch (error) {
+    } catch (error: any) {
       // Log detailed technical error for developers
       console.error('Error creating calendar event:', error);
       
       // Process different error types to guide logging
       const errorMessage = String(error);
+      
+      // Handle authentication issues
+      if (errorMessage.includes("Authentication failed") || 
+          errorMessage.includes("expired") || 
+          errorMessage.includes("reconnect")) {
+        console.error("Authentication error detected - user needs to reconnect Google Calendar");
+        
+        // Return helpful message for auth issues
+        return res.status(401).json({ 
+          success: false,
+          authError: true, 
+          message: 'Your Google Calendar connection has expired. Please reconnect your account.',
+          action: 'reconnect'
+        });
+      }
+      
+      // Handle permission issues
+      if (errorMessage.includes("Permission denied") || 
+          errorMessage.includes("insufficient permission") ||
+          (error.response && error.response.status === 403)) {
+        console.error("Permission error detected - user has insufficient calendar permissions");
+        
+        return res.status(403).json({ 
+          success: false,
+          authError: true,
+          message: 'You don\'t have sufficient permissions for Google Calendar. Please reconnect with full calendar access.',
+          action: 'reconnect'
+        });
+      }
+      
+      // Handle conflict errors
+      if (errorMessage.includes("conflict") || 
+          (error.response && error.response.status === 409)) {
+        console.error("Calendar conflict detected");
+        
+        return res.status(409).json({ 
+          success: false, 
+          message: 'That time slot conflicts with another event on your calendar. Please choose a different time.'
+        });
+      }
+      
+      // Handle network/timeout errors
+      if (errorMessage.includes("timeout") || 
+          errorMessage.includes("network") ||
+          errorMessage.includes("ETIMEDOUT") ||
+          errorMessage.includes("ECONNRESET")) {
+        console.error("Network or timeout error detected");
+        
+        return res.status(503).json({ 
+          success: false, 
+          retryable: true,
+          message: 'Network issue while connecting to Google Calendar. Please check your connection and try again.'
+        });
+      }
       
       // For API availability issues, log details but return user-friendly message
       if (errorMessage.includes("API has not been used") || errorMessage.includes("it is disabled")) {
@@ -813,9 +867,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error(`Calendar API not enabled for project ${projectId}`);
         
         // Return user-friendly message without API details
-        return res.status(500).json({ 
+        return res.status(503).json({ 
           success: false, 
           message: 'We\'re having trouble connecting to your calendar right now. Please try again in a few minutes.'
+        });
+      }
+      
+      // Handle rate limit errors
+      if (errorMessage.includes("quota") || 
+          (error.response && error.response.status === 429)) {
+        console.error("Rate limit exceeded for Google Calendar API");
+        
+        return res.status(429).json({ 
+          success: false,
+          retryable: true,
+          message: 'Too many calendar requests. Please wait a moment and try again.'
         });
       }
       

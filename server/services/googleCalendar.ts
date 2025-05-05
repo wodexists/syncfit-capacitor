@@ -642,9 +642,24 @@ export async function createWorkoutEvent(
   const calendar = getCalendarClient(accessToken);
   
   try {
-    // Note: We don't need to check for conflicts here anymore
-    // That's done at the route level before calling this function
-    // This allows us to handle conflict errors more gracefully
+    // Log calendar operation attempt for monitoring
+    console.log(`Attempting to create calendar event "${workoutName}" at ${startTime}`);
+    
+    // Verify access token validity before proceeding
+    try {
+      // Quick check if credentials are valid by making a small API request
+      await calendar.calendarList.list({ maxResults: 1 });
+      console.log("Access token validated successfully");
+    } catch (tokenError: any) {
+      // Enhanced credential error logging
+      if (tokenError.code === 401 || tokenError.code === 403 || 
+          (tokenError.response && (tokenError.response.status === 401 || tokenError.response.status === 403))) {
+        console.error("Authentication error - invalid or expired access token:", tokenError.message);
+        throw new Error("Authentication failed: Your Google Calendar access has expired or been revoked. Please reconnect your Google account.");
+      }
+      // Other kinds of errors we'll let proceed and try the operation anyway
+      console.warn("Token validation warning, attempting operation anyway:", tokenError.message);
+    }
     
     // Set reminders based on preferences or defaults
     const reminderOverrides = [];
@@ -675,14 +690,55 @@ export async function createWorkoutEvent(
       }
     };
     
-    const response = await calendar.events.insert({
-      calendarId: 'primary',
-      requestBody: event
-    });
+    console.log(`Calendar event built and ready to send to Google API: ${JSON.stringify({
+      summary: event.summary,
+      start: startTime,
+      end: endTime,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    })}`);
+    
+    // Make the actual API request with timeout
+    const response = await Promise.race([
+      calendar.events.insert({
+        calendarId: 'primary',
+        requestBody: event
+      }),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Calendar API request timed out after 10 seconds')), 10000)
+      )
+    ]) as any;
+    
+    // Success logging
+    console.log(`Successfully created Google Calendar event: ${response.data.id}, HTML link: ${response.data.htmlLink}`);
     
     return response.data;
-  } catch (error) {
+  } catch (error: any) {
+    // Enhanced error handling with specific cause identification
     console.error('Error creating workout event:', error);
+    
+    // Check for specific error conditions to provide better diagnostics
+    if (error.response) {
+      console.error(`API error status: ${error.response.status}`, error.response.data);
+      
+      // Handle specific Google Calendar API errors
+      if (error.response.status === 401) {
+        throw new Error('Authentication failed: Your Google Calendar access has expired. Please reconnect your account.');
+      } else if (error.response.status === 403) {
+        throw new Error('Permission denied: You don\'t have sufficient permissions for Google Calendar. Please check your account settings.');
+      } else if (error.response.status === 404) {
+        throw new Error('Calendar not found: The selected calendar could not be found. Please check your calendar settings.');
+      } else if (error.response.status === 409) {
+        throw new Error('Calendar conflict: There is a conflict with an existing event. Please choose a different time.');
+      } else if (error.response.status === 500) {
+        throw new Error('Google Calendar service error: Please try again later.');
+      }
+    } else if (error.code === 'ENOTFOUND' || error.code === 'ETIMEDOUT' || error.code === 'ECONNRESET') {
+      throw new Error('Network error: Could not connect to Google Calendar. Please check your internet connection.');
+    } else if (error.message && error.message.includes('timed out')) {
+      throw new Error('Request timeout: The connection to Google Calendar timed out. Please try again.');
+    }
+    
+    // Fallback for unknown errors
     throw error;
   }
 }
