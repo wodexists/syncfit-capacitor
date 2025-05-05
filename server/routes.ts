@@ -484,13 +484,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Parse request parameters
-      const { date, durationMinutes } = req.body;
+      const { date, durationMinutes, timeHorizon } = req.body;
       const searchDate = date ? new Date(date) : new Date();
       const duration = durationMinutes ? parseInt(durationMinutes) : 30;
       
       // Get user's selected calendars if any
       const userPrefs = await storage.getUserPreferences(userId);
       let selectedCalendars: string[] | undefined;
+      
+      // Determine time horizon (default to user preference or 1 day)
+      let searchTimeHorizon = 1; // Default to today only
+      
+      if (timeHorizon) {
+        // If explicitly provided in the request, use that
+        searchTimeHorizon = parseInt(timeHorizon);
+      } else if (userPrefs?.defaultTimeHorizon) {
+        // Otherwise use user's preference if available
+        searchTimeHorizon = userPrefs.defaultTimeHorizon;
+      }
       
       if (userPrefs && userPrefs.selectedCalendars) {
         try {
@@ -500,11 +511,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Call the Google Calendar service
+      // Call the Google Calendar service with time horizon parameter
       const availableSlots = await GoogleCalendarService.findAvailableTimeSlots(
         user.googleAccessToken,
         searchDate,
-        duration
+        duration,
+        searchTimeHorizon
       );
       
       // Check if learning mode is enabled

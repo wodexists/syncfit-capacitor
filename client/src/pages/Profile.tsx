@@ -35,6 +35,7 @@ const preferencesFormSchema = z.object({
   morningWorkouts: z.boolean().default(false),
   afternoonWorkouts: z.boolean().default(false),
   eveningWorkouts: z.boolean().default(false),
+  defaultTimeHorizon: z.string().min(1, "Please select a default time horizon"),
 });
 
 type PreferencesFormValues = z.infer<typeof preferencesFormSchema>;
@@ -64,6 +65,7 @@ export default function Profile({ user }: ProfileProps) {
         morningWorkouts: false,
         afternoonWorkouts: false,
         eveningWorkouts: false,
+        defaultTimeHorizon: "1",
       };
     }
 
@@ -99,6 +101,7 @@ export default function Profile({ user }: ProfileProps) {
       morningWorkouts,
       afternoonWorkouts,
       eveningWorkouts,
+      defaultTimeHorizon: preferences.defaultTimeHorizon?.toString() || "1",
     };
   };
 
@@ -127,6 +130,7 @@ export default function Profile({ user }: ProfileProps) {
         preferredWorkoutDuration: parseInt(data.preferredWorkoutDuration),
         preferredCategories: JSON.stringify(data.preferredCategories),
         preferredWorkoutTimes: JSON.stringify(preferredWorkoutTimes),
+        defaultTimeHorizon: parseInt(data.defaultTimeHorizon),
       });
 
       toast({
