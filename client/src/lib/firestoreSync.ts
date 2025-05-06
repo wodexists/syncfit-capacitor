@@ -4,12 +4,27 @@ import { db as firestoreDb } from "./firebase";
 // Get the Firestore instance with null safety
 const db = firestoreDb;
 
-// Helper function to check if Firestore is available
+// Helper function to check if Firestore is available with enhanced error handling
 function isFirestoreAvailable(): boolean {
   if (!db) {
     console.error('Firestore is not initialized. Firebase connection may have failed.');
     return false;
   }
+  
+  // Log additional connection info for debugging
+  if (typeof window !== 'undefined') {
+    console.log(`Firestore connection check - URL: ${window.location.href}`);
+    console.log(`Firestore connection check - Online: ${navigator.onLine}`);
+    
+    if (!navigator.onLine) {
+      console.error('Network appears to be offline. Firestore operations will fail.');
+      return false;
+    }
+  }
+  
+  // Logging but still returning true to allow the operation to attempt
+  // The operation itself will catch and handle any errors that occur
+  console.log('Firestore appears to be available, attempting operation...');
   return true;
 }
 
