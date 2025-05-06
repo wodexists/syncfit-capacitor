@@ -480,10 +480,8 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
       // Set scheduling status
       setIsScheduling(true);
       
-      // We can use either approach: the direct function or the mutation
-      // Using the mutation approach by default
-      // Set to true to use direct function instead of mutation
-      if (false) {
+      // We'll use the mutation approach which handles all the scheduling logic
+      if (false) { // Disabled direct function approach in favor of mutation
         try {
           // Create a pending event in Firestore first for reliability tracking
           let tempEventId: string | undefined;
