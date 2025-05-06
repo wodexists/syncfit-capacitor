@@ -613,9 +613,10 @@ export async function createRecurringWorkouts(
   startTime: string,
   endTime: string,
   pattern: RecurringPattern,
-  reminderMinutes?: number
+  reminderMinutes?: number,
+  refreshToken?: string
 ): Promise<calendar_v3.Schema$Event[]> {
-  const calendar = getCalendarClient(accessToken);
+  const calendar = getCalendarClient(accessToken, refreshToken);
   
   try {
     const events: calendar_v3.Schema$Event[] = [];
@@ -679,7 +680,7 @@ export async function createRecurringWorkouts(
       const eventEndTime = new Date(date.getTime() + duration).toISOString();
       
       // Check for conflicts - only create events for times that are free
-      const isAvailable = await checkTimeSlotConflicts(accessToken, eventStartTime, eventEndTime);
+      const isAvailable = await checkTimeSlotConflicts(accessToken, eventStartTime, eventEndTime, undefined, refreshToken);
       
       if (isAvailable) {
         // Create the event
@@ -688,7 +689,8 @@ export async function createRecurringWorkouts(
           workoutName, 
           eventStartTime, 
           eventEndTime,
-          reminderMinutes
+          reminderMinutes,
+          refreshToken
         );
         
         events.push(event);

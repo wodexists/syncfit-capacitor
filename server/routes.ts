@@ -712,10 +712,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Google access token not available' });
       }
       
-      // Call the Google Calendar service
+      // Call the Google Calendar service with refresh token
       const availabilityTimeline = await GoogleCalendarService.createAvailabilityTimeline(
         user.googleAccessToken,
-        new Date()
+        new Date(),
+        user.googleRefreshToken || undefined
       );
       
       // Include a timestamp for validation
@@ -834,7 +835,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const isAvailable = await GoogleCalendarService.checkTimeSlotConflicts(
         user.googleAccessToken,
         startTime,
-        endTime
+        endTime,
+        undefined,
+        user.googleRefreshToken
       );
       
       if (!isAvailable) {
@@ -853,7 +856,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         workoutName,
         startTime,
         endTime,
-        reminderMinutes
+        reminderMinutes,
+        user.googleRefreshToken
       );
       
       res.status(201).json({ 
@@ -1004,7 +1008,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const isFirstSlotAvailable = await GoogleCalendarService.checkTimeSlotConflicts(
         user.googleAccessToken,
         startTime,
-        endTime
+        endTime,
+        undefined,
+        user.googleRefreshToken
       );
       
       if (!isFirstSlotAvailable) {
@@ -1021,7 +1027,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         startTime,
         endTime,
         pattern,
-        reminderMinutes
+        reminderMinutes,
+        user.googleRefreshToken
       );
       
       // Return the created events' IDs and details
@@ -1092,7 +1099,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`Calendar API: User has access token (first 10 chars): ${user.googleAccessToken.substring(0, 10)}...`);
       
       // Make the API call
-      const calendars = await GoogleCalendarService.getCalendarList(user.googleAccessToken);
+      const calendars = await GoogleCalendarService.getCalendarList(user.googleAccessToken, user.googleRefreshToken);
       console.log(`Calendar API: Successfully retrieved ${calendars.length} calendars`);
       
       // Get user preferences to mark selected calendars
