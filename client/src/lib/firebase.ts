@@ -7,7 +7,7 @@ import {
   getRedirectResult,
   GoogleAuthProvider,
   connectAuthEmulator,
-  signOut
+  signOut as firebaseSignOut
 } from "firebase/auth";
 import { 
   getFirestore, 

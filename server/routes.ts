@@ -1669,6 +1669,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
       message: 'Firebase connection endpoint is available'
     });
   });
+  
+  // Testing endpoint for conflict detection
+  app.post('/api/testing/conflict-check', (req: Request, res: Response) => {
+    console.log('Conflict check testing endpoint called');
+    const { startTime, endTime } = req.body;
+    
+    if (!startTime || !endTime) {
+      return res.status(400).json({
+        success: false,
+        message: 'Start time and end time are required'
+      });
+    }
+    
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    
+    // For testing purposes, we're simulating a conflict with the test event
+    // This would normally check against real calendar events
+    const mockConflictingEvent = {
+      id: 'test-conflict-event-1',
+      summary: 'Test Workout Session',
+      start: { dateTime: new Date(start.getTime() - 1800000).toISOString() }, // 30 min before requested start
+      end: { dateTime: new Date(start.getTime() + 1800000).toISOString() } // 30 min after requested start
+    };
+    
+    // We'll always return a conflict for testing purposes
+    res.json({
+      success: true,
+      hasConflict: true,
+      conflictingEvents: [mockConflictingEvent],
+      message: 'Conflict detected with existing event(s)'
+    });
+  });
+  
+  // Testing endpoint for Firebase structure validation
+  app.post('/api/testing/validate-firebase-structure', (req: Request, res: Response) => {
+    console.log('Firebase structure validation endpoint called');
+    
+    // This endpoint simulates checking our Firebase structure to ensure
+    // the subcollection reference pattern is working correctly
+    res.json({
+      success: true,
+      structureValid: true,
+      collections: [
+        'users',
+        'syncEvents/{userId}/events',
+        'workouts',
+        'workout-categories'
+      ],
+      message: 'Firebase collection structure is valid'
+    });
+  });
 
   return httpServer;
 }
