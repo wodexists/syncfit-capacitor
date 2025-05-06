@@ -639,7 +639,7 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
       <Dialog open={isOpen} onOpenChange={(open) => {
         if (!open) onClose();
       }}>
-        <DialogContent className="sm:max-w-[550px]">
+        <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-hidden">
           <DialogHeader>
             <DialogTitle className="text-xl font-semibold">Select a Workout</DialogTitle>
           </DialogHeader>
@@ -886,7 +886,7 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
         
         {availableSlots.length > 0 ? (
           <RadioGroup value={selectedTimeSlot || undefined} onValueChange={setSelectedTimeSlot}>
-            <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-1">
+            <div className="space-y-2 max-h-[30vh] overflow-y-auto pr-1 py-1" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
               {availableSlots.map((slot, index) => {
                 const startDate = new Date(slot.start);
                 const endDate = new Date(slot.end);
@@ -988,7 +988,7 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
       <Dialog open={isOpen} onOpenChange={(open) => {
         if (!open) onClose();
       }}>
-        <DialogContent className="sm:max-w-[550px]">
+        <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-hidden">
           <DialogHeader>
             <DialogTitle className="text-xl font-semibold">Schedule Workout</DialogTitle>
           </DialogHeader>
