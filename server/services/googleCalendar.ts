@@ -45,23 +45,46 @@ export interface EventWithReminders extends calendar_v3.Schema$Event {
 /**
  * Create an OAuth2 client for Google API calls
  * @param accessToken User's Google access token
+ * @param refreshToken User's Google refresh token (optional)
  * @returns OAuth2 client instance
  */
-function createOAuth2Client(accessToken: string) {
-  const oauth2Client = new google.auth.OAuth2();
-  oauth2Client.setCredentials({
+function createOAuth2Client(accessToken: string, refreshToken?: string) {
+  const oauth2Client = new google.auth.OAuth2(
+    // These params aren't needed for token-based auth but may be required for refresh token usage
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+    "postmessage" // Using postmessage as redirect URI is common for popup-based auth
+  );
+  
+  const credentials: any = {
     access_token: accessToken
+  };
+  
+  // Add refresh token if available
+  if (refreshToken) {
+    credentials.refresh_token = refreshToken;
+  }
+  
+  oauth2Client.setCredentials(credentials);
+  
+  // Setup token refresh handler
+  oauth2Client.on('tokens', (tokens) => {
+    console.log('New tokens received during refresh');
+    // You can implement token persistence here (e.g., update user record in database)
+    // This event fires when tokens are refreshed automatically
   });
+  
   return oauth2Client;
 }
 
 /**
  * Get a client for Google Calendar API
  * @param accessToken User's Google access token
+ * @param refreshToken User's Google refresh token (optional)
  * @returns Calendar API client
  */
-function getCalendarClient(accessToken: string): calendar_v3.Calendar {
-  const auth = createOAuth2Client(accessToken);
+function getCalendarClient(accessToken: string, refreshToken?: string): calendar_v3.Calendar {
+  const auth = createOAuth2Client(accessToken, refreshToken);
   return google.calendar({ version: 'v3', auth });
 }
 
@@ -75,9 +98,10 @@ function getCalendarClient(accessToken: string): calendar_v3.Calendar {
 export async function getFreeBusy(
   accessToken: string,
   startTime: Date = new Date(),
-  endTime: Date = new Date(new Date().setHours(23, 59, 59))
+  endTime: Date = new Date(new Date().setHours(23, 59, 59)),
+  refreshToken?: string
 ): Promise<calendar_v3.Schema$FreeBusyResponse> {
-  const calendar = getCalendarClient(accessToken);
+  const calendar = getCalendarClient(accessToken, refreshToken);
   
   try {
     // Get calendars for the user
@@ -108,9 +132,10 @@ export async function getFreeBusy(
  */
 export async function getEventsForDay(
   accessToken: string,
-  date: Date = new Date()
+  date: Date = new Date(),
+  refreshToken?: string
 ): Promise<calendar_v3.Schema$Event[]> {
-  const calendar = getCalendarClient(accessToken);
+  const calendar = getCalendarClient(accessToken, refreshToken);
   
   // Set time range for the entire day
   const startOfDay = new Date(date);
@@ -148,7 +173,8 @@ export async function findAvailableTimeSlots(
   accessToken: string,
   date: Date = new Date(),
   durationMinutes: number = 30,
-  timeHorizon: number = 1
+  timeHorizon: number = 1,
+  refreshToken?: string
 ): Promise<TimeSlot[]> {
   try {
     // Limit time horizon to reasonable values
@@ -353,7 +379,8 @@ async function findSlotsSingleDay(
  */
 export async function createAvailabilityTimeline(
   accessToken: string,
-  date: Date = new Date()
+  date: Date = new Date(),
+  refreshToken?: string
 ): Promise<AvailabilitySlot[]> {
   try {
     // Get all events for the day
@@ -432,7 +459,8 @@ export async function createAvailabilityTimeline(
  * @returns List of calendars
  */
 export async function getCalendarList(
-  accessToken: string
+  accessToken: string,
+  refreshToken?: string
 ): Promise<CalendarListItem[]> {
   // Input validation with detailed logging
   if (!accessToken || accessToken.trim() === '') {
@@ -448,8 +476,8 @@ export async function getCalendarList(
   }
   
   try {
-    // Get calendar client with the token
-    const calendar = getCalendarClient(accessToken);
+    // Get calendar client with the token and refresh token if available
+    const calendar = getCalendarClient(accessToken, refreshToken);
     console.log('Successfully created calendar client, now fetching calendar list...');
     
     // Make the API request with more parameters for better results
@@ -530,9 +558,10 @@ export async function checkTimeSlotConflicts(
   accessToken: string,
   startTime: string,
   endTime: string,
-  selectedCalendars?: string[]
+  selectedCalendars?: string[],
+  refreshToken?: string
 ): Promise<boolean> {
-  const calendar = getCalendarClient(accessToken);
+  const calendar = getCalendarClient(accessToken, refreshToken);
   
   try {
     // If no specific calendars are provided, use primary
@@ -688,9 +717,10 @@ export async function createWorkoutEvent(
   workoutName: string,
   startTime: string,
   endTime: string,
-  reminderMinutes?: number
+  reminderMinutes?: number,
+  refreshToken?: string
 ): Promise<calendar_v3.Schema$Event> {
-  const calendar = getCalendarClient(accessToken);
+  const calendar = getCalendarClient(accessToken, refreshToken);
   
   try {
     // Log calendar operation attempt for monitoring
