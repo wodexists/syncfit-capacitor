@@ -215,7 +215,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           id: user.id,
           email: user.email,
           username: user.username,
-          profilePicture: user.profilePicture
+          profilePicture: user.profilePicture,
+          firebaseUid: user.firebaseUid,
+          googleAccessToken: user.googleAccessToken,
+          googleRefreshToken: user.googleRefreshToken
         }
       });
     } catch (error) {

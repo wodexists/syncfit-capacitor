@@ -251,7 +251,7 @@ export default function Profile({ user }: ProfileProps) {
                   <span className="text-sm">Connected</span>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div>
                     <h4 className="font-medium mb-2">Calendar Selection</h4>
                     <p className="text-sm text-muted-foreground mb-2">
@@ -277,6 +277,20 @@ export default function Profile({ user }: ProfileProps) {
                       className="w-full"
                     >
                       Manage Reminders
+                    </Button>
+                  </div>
+                  
+                  <div>
+                    <h4 className="font-medium mb-2">Calendar Diagnostics</h4>
+                    <p className="text-sm text-muted-foreground mb-2">
+                      Test and diagnose Google Calendar connection issues
+                    </p>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => window.location.href = '/test-calendar'}
+                      className="w-full"
+                    >
+                      Test Connection
                     </Button>
                   </div>
                 </div>
