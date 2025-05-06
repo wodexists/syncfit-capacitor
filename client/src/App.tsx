@@ -9,6 +9,7 @@ import Explore from "@/pages/Explore";
 import Stats from "@/pages/Stats";
 import Profile from "@/pages/Profile";
 import Login from "@/pages/Login";
+import TestCalendar from "@/pages/TestCalendar";
 import Header from "@/components/Header";
 import Navigation from "@/components/Navigation";
 import CalendarSelector from "@/components/CalendarSelector";
@@ -23,6 +24,8 @@ export type User = {
   username: string;
   profilePicture?: string;
   firebaseUid?: string;
+  googleAccessToken?: string;
+  googleRefreshToken?: string;
 };
 
 export type AuthContextType = {
@@ -126,6 +129,11 @@ function App() {
                     <WorkoutReminderSettings />
                   </div> 
                 : <Login />}
+              </Route>
+
+              {/* Test Calendar Page */}
+              <Route path="/test-calendar">
+                {authContext.isAuthenticated ? <TestCalendar /> : <Login />}
               </Route>
               
               {/* Fallback to 404 */}

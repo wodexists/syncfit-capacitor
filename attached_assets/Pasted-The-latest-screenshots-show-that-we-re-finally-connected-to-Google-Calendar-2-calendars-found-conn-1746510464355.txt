@@ -1,0 +1,75 @@
+The latest screenshots show that we're finally connected to Google Calendar (2 calendars found, connectivity = OK), but the app still isn’t syncing events or identifying the User ID, which blocks the core USP.
+
+Here’s a focused summary of what's happening and what needs addressing:
+
+
+---
+
+What’s Working
+
+Google Calendar authentication is successful.
+
+Connection test finds calendars.
+
+UI/UX is clean, communicates sync state, fallback logic, and user options well.
+
+
+What’s Broken
+
+User ID is missing — this likely prevents Firestore from tracking ownership of events or syncing them.
+
+Initial sync never completes — Initial Load Complete: No, Last API Call: Never.
+
+No events pulled or pushed — Sync counts are all 0.
+
+Diagnostic logs show “authenticated” but session still says “Missing User ID”, meaning token handling is only partially wired up between frontend, backend, and Google.
+
+
+
+---
+
+Next Steps (Dev-Focused Fix Plan)
+
+1. Fix User ID handling in session
+
+Ensure ID token or OAuth token is being decoded and stored server-side after auth handshake.
+
+Check the user.uid or sub from token payload is correctly attached to sync requests and Firestore writes.
+
+
+
+2. Trigger and log Initial Load
+
+Add logs to ensure that the initial calendar read is triggered and any failures are caught (e.g. scope issues, bad token refresh, permission problems).
+
+
+
+3. Manually test listEvents() API call with token
+
+Verify that token has the correct calendar.readonly or calendar scope and can list events via the Calendar API in server context.
+
+
+
+4. Wire Firestore mirror layer
+
+Ensure the mirror layer correctly:
+
+Filters only SyncFit-created events.
+
+Writes sync metadata (e.g. timestamp, lastModified, conflict state).
+
+
+
+
+5. Add robust error states to UI
+
+If syncing fails due to missing UID, show a specific error (e.g. "Unable to sync: missing user credentials. Please sign out and try again.").
+
+
+
+
+
+---
+
+Would you like this summarised as a Jira ticket or handed back to the Replit agent with a punchy comment?
+
