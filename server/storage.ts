@@ -384,7 +384,8 @@ export class MemStorage implements IStorage {
       enableRecurring: preferences.enableRecurring || null,
       recurringPattern: preferences.recurringPattern || null,
       learningEnabled: preferences.learningEnabled ?? true, // Default to true if not provided
-      lastLearningChange: preferences.lastLearningChange || null
+      lastLearningChange: preferences.lastLearningChange || null,
+      defaultTimeHorizon: preferences.defaultTimeHorizon || 1 // Ensure defaultTimeHorizon has a value
     };
     this.userPreferences.set(id, newPreferences);
     return newPreferences;

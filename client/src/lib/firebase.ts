@@ -7,7 +7,13 @@ import {
   getRedirectResult,
   GoogleAuthProvider 
 } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { 
+  getFirestore, 
+  connectFirestoreEmulator,
+  initializeFirestore,
+  persistentLocalCache,
+  CACHE_SIZE_UNLIMITED
+} from "firebase/firestore";
 import { apiRequest } from "@/lib/queryClient";
 
 // Use the original Firebase auth domain
@@ -28,7 +34,14 @@ console.log(`Current URL: ${window.location.href}`);
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db = getFirestore(app);
+
+// Configure Firestore with improved settings
+const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({ cacheSizeBytes: CACHE_SIZE_UNLIMITED })
+});
+
+// Log Firestore initialization
+console.log("Firestore initialized with persistent cache");
 
 // Configure Google Auth Provider with required scopes for Calendar
 const provider = new GoogleAuthProvider();
@@ -242,9 +255,10 @@ export async function signInWithGoogle(): Promise<{success: boolean, error?: str
         // Method 2: Check user's ID token for claims
         if (!refreshToken) {
           const idTokenResult = await user.getIdTokenResult();
-          // Check Google OAuth specific claims
-          refreshToken = idTokenResult?.claims?.['refresh_token'] || 
-                         idTokenResult?.claims?.['firebase']?.['refresh_token'] || '';
+          // Check Google OAuth specific claims - using any type to access arbitrary properties
+          const claims = idTokenResult?.claims as any;
+          refreshToken = claims?.['refresh_token'] || 
+                         claims?.['firebase']?.['refresh_token'] || '';
         }
         
         // Method 3: Check if available in result metadata
