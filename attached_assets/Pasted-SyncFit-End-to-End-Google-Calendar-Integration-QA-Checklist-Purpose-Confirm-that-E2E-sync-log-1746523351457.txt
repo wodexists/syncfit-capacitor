@@ -1,0 +1,79 @@
+SyncFit: End-to-End Google Calendar Integration QA Checklist
+
+    Purpose: Confirm that E2E sync logic (from token → slot → calendar → Firestore → UI) is working reliably in test environment before next deployment.
+
+🔁 1. Token Authentication & Refresh
+
+Test user authenticates with Google via OAuth2
+
+Access token is stored securely
+
+Refresh token is available and retrievable
+
+Simulate expired token and verify it refreshes without breaking sync
+
+    Server returns proper Firebase UID and Google token to client session
+
+📅 2. Google Calendar API Write Test
+
+Schedule a test workout (e.g. "Test Run – Delete Me") to an open time today
+
+Confirm events.insert or batchInsert was actually called
+
+Log output includes valid event.id, calendarId, and htmlLink
+
+    Event is visible in Google Calendar UI (can be confirmed via console)
+
+🔁 3. Firestore Mirror Test
+
+Test event is stored in Firestore:
+
+    status: "synced"
+
+    Includes: title, calendarId, eventId, startTime
+
+Firestore reflects updated sync state
+
+    If event is edited in Google Calendar, conflict is correctly flagged (status: "conflict")
+
+📊 4. Diagnostic & Dashboard Verification
+
+"Calendar Sync Status" shows:
+
+    ✓ Synced: 1
+
+    Conflicts: 0
+
+    Errors: 0
+
+Sync State Diagnostic Log includes:
+
+Last API Call: [timestamp]
+Total: ≥1
+Status: success
+
+“Smart Scheduling” excludes the time used by test event
+
+Event appears in “Upcoming Workouts” section
+
+    Status indicators update automatically after sync
+
+📸 5. Provide Artifacts
+
+Console logs showing successful insert + Firestore write
+
+Screenshot of test event in Google Calendar
+
+Screenshot of dashboard showing the synced event
+
+    Confirmation that test data is removed after cleanup
+
+✅ Test Summary (at end)
+
+Please return a simple success summary like:
+
+✔ Google token validated and refreshed
+✔ Event successfully created and inserted via Google Calendar API
+✔ Event written to Firestore with status "synced"
+✔ UI updated to reflect sync
+✔ All automated test cases passed
