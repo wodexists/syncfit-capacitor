@@ -85,7 +85,7 @@ async function runConflictTest() {
     
     const events = snapshot.docs.map(d => ({
       id: d.id,
-      ...d.data()
+      ...d.data() as { status: string, title: string, start: string, end: string, source: string }
     }));
     
     const conflict = events.find(e => e.status === 'conflict');
