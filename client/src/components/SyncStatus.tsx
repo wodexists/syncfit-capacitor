@@ -598,38 +598,62 @@ export function SyncStatus() {
             <div className="mt-2 bg-slate-50 border border-slate-200 rounded-md p-2 text-xs font-mono">
               <p className="font-medium text-slate-700 mb-1">Sync State Diagnostic Log:</p>
               <div className="space-y-0.5 text-slate-600 max-h-64 overflow-y-auto">
-                <p>Last API Call: {lastChecked?.toISOString() || 'Never'}</p>
-                <p>Auth Status: {isAuthenticated ? 'Authenticated' : 'Not Authenticated'}</p>
-                <p>Google Calendar Connectivity: {
-                  connectivityIssue ? 'Error - Connection Problem' : 
-                  isAuthIssue ? 'Error - Authentication Problem' :
-                  'OK'
-                }</p>
-                <p>User ID: {user?.id || 'Unknown'}</p>
-                <p>Firebase UID: {user?.firebaseUid || 'Unknown'}</p>
-                <p>Google Token Present: {user?.googleAccessToken ? 'Yes' : 'No'}</p>
-                <p>Initial Load Complete: {initialLoad ? 'No' : 'Yes'}</p>
-                <p>Recovery Attempts: {recoveryAttempts}</p>
-                <p>Pending Retries: {syncCounts.error}</p>
-                <p>Sync Counts: {JSON.stringify({
-                  total: syncCounts.total,
-                  pending: syncCounts.pending,
-                  synced: syncCounts.synced,
-                  error: syncCounts.error,
-                  conflict: syncCounts.conflict,
-                  success: syncCounts.success
-                }, null, 2)}</p>
-                <p>Last Checked: {lastChecked?.toLocaleTimeString() || 'Never'}</p>
-                <p>Session Health: {
+                <p className="font-semibold text-slate-700 border-b border-slate-200 pb-1 mt-2">Authentication Status:</p>
+                <p>Auth Status: <span className={isAuthenticated ? 'text-green-600' : 'text-red-600'}>{isAuthenticated ? 'Authenticated' : 'Not Authenticated'}</span></p>
+                <p>User ID: <span className={user?.id ? 'text-green-600' : 'text-red-600'}>{user?.id || 'Unknown'}</span></p>
+                <p>Firebase UID: <span className={user?.firebaseUid ? 'text-green-600' : 'text-red-600'}>{user?.firebaseUid || 'Unknown'}</span></p>
+                <p>Session Health: <span className={
+                  isAuthenticated && user?.firebaseUid && !isAuthIssue ? 'text-green-600' :
+                  'text-red-600'
+                }>{
                   isAuthenticated && user?.firebaseUid && !isAuthIssue ? 'Healthy' :
                   isAuthenticated && user?.firebaseUid && isAuthIssue ? 'Auth Token Problem' :
                   isAuthenticated && !user?.firebaseUid ? 'Missing User ID' :
                   'Not Authenticated'
-                }</p>
+                }</span></p>
+                
+                <p className="font-semibold text-slate-700 border-b border-slate-200 pb-1 mt-2">Google Calendar Access:</p>
+                <p>Google Token: <span className={user?.googleAccessToken ? 'text-green-600' : 'text-red-600'}>{
+                  user?.googleAccessToken 
+                    ? `Present (${user.googleAccessToken.substring(0, 10)}...)` 
+                    : 'Missing'
+                }</span></p>
+                <p>Refresh Token: <span className={user?.googleRefreshToken ? 'text-green-600' : 'text-amber-600'}>{
+                  user?.googleRefreshToken 
+                    ? 'Present' 
+                    : 'Not available'
+                }</span></p>
+                <p>Calendar API Status: <span className={
+                  connectivityIssue || isAuthIssue ? 'text-red-600' : 'text-green-600'
+                }>{
+                  connectivityIssue ? 'Error - Connection Problem' : 
+                  isAuthIssue ? 'Error - Authentication Problem' :
+                  'Connected'
+                }</span></p>
+                
+                <p className="font-semibold text-slate-700 border-b border-slate-200 pb-1 mt-2">Sync Activity:</p>
+                <p>Last API Call: {lastChecked?.toLocaleTimeString() || 'Never'}</p>
+                <p>Initial Load Complete: {initialLoad ? 'No' : 'Yes'}</p>
+                <p>Recovery Attempts: {recoveryAttempts}</p>
                 <p>Auto-refresh Active: {isAuthenticated ? 'Yes (30s)' : 'No'}</p>
+                
+                <p className="font-semibold text-slate-700 border-b border-slate-200 pb-1 mt-2">Events Status:</p>
+                <p>Total Events: {syncCounts.total}</p>
+                <p>Synced: <span className="text-green-600">{syncCounts.synced}</span></p>
+                <p>Pending: <span className="text-amber-600">{syncCounts.pending}</span></p>
+                <p>Errors: <span className="text-red-600">{syncCounts.error}</span></p>
+                <p>Conflicts: <span className="text-amber-600">{syncCounts.conflict}</span></p>
+                {syncCounts.lastSyncedAt && (
+                  <p>Last Sync: {new Date(syncCounts.lastSyncedAt).toLocaleString()}</p>
+                )}
+                
+                <p className="font-semibold text-slate-700 border-b border-slate-200 pb-1 mt-2">Detailed Debug Info:</p>
+                <p>Timestamp: {new Date().toISOString()}</p>
+                <p>User Agent: {navigator.userAgent}</p>
+                <p>Page URL: {window.location.href}</p>
               </div>
               
-              <div className="mt-3 flex items-center gap-2">
+              <div className="mt-3 flex flex-wrap items-center gap-2">
                 <Button 
                   variant="outline" 
                   size="sm" 
@@ -650,6 +674,22 @@ export function SyncStatus() {
                   <Calendar className="h-3 w-3 mr-1" />
                   Force Connection Check
                 </Button>
+                
+                {(isAuthIssue || connectivityIssue) && (
+                  <Button 
+                    variant="destructive" 
+                    size="sm" 
+                    className="h-7 text-xs"
+                    onClick={() => {
+                      if (confirm('This will sign you out and reset your session. Continue?')) {
+                        window.location.href = '/login';
+                      }
+                    }}
+                  >
+                    <RotateCw className="h-3 w-3 mr-1" />
+                    Emergency Reset
+                  </Button>
+                )}
               </div>
             </div>
           )}

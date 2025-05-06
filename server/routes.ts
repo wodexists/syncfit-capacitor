@@ -66,8 +66,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { googleId, email, displayName, accessToken, refreshToken, profilePicture } = req.body;
       
       console.log(`Processing Google auth for user: ${email}`);
+      console.log(`Received Google Access Token: ${accessToken ? 'Yes (length: ' + accessToken.length + ')' : 'No'}`);
+      console.log(`Received Google Refresh Token: ${refreshToken ? 'Yes (length: ' + refreshToken.length + ')' : 'No'}`);
       
       if (!googleId || !email) {
+        console.log('Missing required fields in Google auth request');
         return res.status(400).json({ 
           success: false, 
           message: "Invalid authentication data: missing required fields" 
@@ -88,14 +91,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
           googleRefreshToken: refreshToken || '',
           profilePicture: profilePicture || ''
         });
+        console.log(`New user created with ID: ${user.id}`);
       } else {
         // Update tokens
         console.log(`Updating tokens for existing user: ${user.id}`);
         user = await storage.updateUserTokens(user.id, accessToken || '', refreshToken || '') || user;
+        console.log(`User tokens updated, access token present: ${!!user.googleAccessToken}`);
       }
       
       // Set session
       req.session.userId = user.id;
+      console.log(`Session userId set to: ${user.id}`);
+      
+      // This adds extra debugging for session handling
+      console.log(`Session before save:`, {
+        id: req.session.id,
+        userId: req.session.userId,
+        cookie: req.session.cookie
+      });
       
       // Force session save to ensure it's immediately available
       await new Promise<void>((resolve, reject) => {
@@ -198,16 +211,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Get current user
   app.get('/api/auth/user', async (req: Request, res: Response) => {
+    // Log detailed session info
+    console.log(`Auth Check - Session ID: ${req.session.id || 'none'}`);
+    console.log(`Auth Check - Session data:`, {
+      hasSession: !!req.session,
+      sessionId: req.session.id,
+      userId: req.session.userId,
+      cookiePresent: !!req.session.cookie,
+    });
+    
     if (!req.session.userId) {
+      console.log('Auth Check - No userId in session, returning unauthenticated');
       return res.status(200).json({ authenticated: false });
     }
     
     try {
+      console.log(`Auth Check - Looking up user with ID: ${req.session.userId}`);
       const user = await storage.getUser(req.session.userId);
       
       if (!user) {
+        console.log(`Auth Check - User ID ${req.session.userId} not found in database`);
         return res.status(200).json({ authenticated: false });
       }
+      
+      console.log(`Auth Check - User ${user.id} authenticated successfully`);
+      console.log(`Auth Check - Firebase UID: ${user.firebaseUid || 'Not set'}`);
+      console.log(`Auth Check - Google token present: ${!!user.googleAccessToken}`);
       
       res.status(200).json({
         authenticated: true,
@@ -217,7 +246,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           username: user.username,
           profilePicture: user.profilePicture,
           firebaseUid: user.firebaseUid,
-          googleAccessToken: user.googleAccessToken,
+          googleAccessToken: user.googleAccessToken, 
           googleRefreshToken: user.googleRefreshToken
         }
       });
