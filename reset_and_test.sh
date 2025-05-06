@@ -14,7 +14,7 @@ EMULATOR_PID=$!
 sleep 5
 
 # Step 4: Start mock calendar server in background
-node mock_calendar_api.js &
+node mock_calendar_api.cjs &
 MOCK_PID=$!
 sleep 2
 

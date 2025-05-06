@@ -10,7 +10,7 @@ fi
 
 # Start mock calendar API server
 echo "🧪 Starting mock Calendar API..."
-node mock_calendar_api.js &
+node mock_calendar_api.cjs &
 MOCK_PID=$!
 sleep 2
 

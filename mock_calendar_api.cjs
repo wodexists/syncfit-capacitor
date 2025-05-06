@@ -5,8 +5,8 @@
  * It provides endpoints that emulate responses similar to Google Calendar.
  */
 
-import express from 'express';
-import cors from 'cors';
+const express = require('express');
+const cors = require('cors');
 const app = express();
 const PORT = 5000;
 
