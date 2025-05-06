@@ -189,8 +189,10 @@ export async function signInWithGoogle(): Promise<{success: boolean, error?: str
     // that can work properly in Replit's preview environment without redirect URI config
     
     // Customize the Google Auth Provider to force select account every time
+    // and request offline access to get refresh token
     provider.setCustomParameters({
-      prompt: 'select_account',
+      prompt: 'consent select_account', // 'consent' forces re-consent which helps get refresh token
+      access_type: 'offline',  // Request offline access for refresh token
       // Adding these parameters to improve popup handling
       display: 'popup',
       include_granted_scopes: 'true'
@@ -216,14 +218,49 @@ export async function signInWithGoogle(): Promise<{success: boolean, error?: str
       // If we get here, the popup auth was successful
       console.log("Popup authentication successful");
       
-      // Get Google OAuth tokens
+      // Get Google OAuth tokens and user
       const credential = GoogleAuthProvider.credentialFromResult(result);
+      const user = result.user;
+      
       if (!credential) {
         throw new Error("Failed to get credentials from Google");
       }
       
       const accessToken = credential.accessToken;
-      const user = result.user;
+      
+      // Attempt to extract refresh token using multiple approaches
+      let refreshToken = '';
+      try {
+        // Method 1: Try to get refresh token from credential directly
+        // This is where Firebase usually stores it but doesn't expose it through the API
+        if (credential && 'refreshToken' in credential) {
+          refreshToken = (credential as any).refreshToken || '';
+        }
+        
+        // Method 2: Check user's ID token for claims
+        if (!refreshToken) {
+          const idTokenResult = await user.getIdTokenResult();
+          // Check Google OAuth specific claims
+          refreshToken = idTokenResult?.claims?.['refresh_token'] || 
+                         idTokenResult?.claims?.['firebase']?.['refresh_token'] || '';
+        }
+        
+        // Method 3: Check if available in result metadata
+        if (!refreshToken && result && 'additionalUserInfo' in result) {
+          const additionalInfo = (result as any).additionalUserInfo;
+          if (additionalInfo?.profile && 'refresh_token' in additionalInfo.profile) {
+            refreshToken = additionalInfo.profile.refresh_token;
+          }
+        }
+      } catch (error) {
+        console.error("Error getting refresh token:", error);
+      }
+      
+      console.log('Token info:', {
+        hasAccessToken: !!accessToken,
+        hasRefreshToken: !!refreshToken,
+        refreshTokenInfo: refreshToken ? 'Present' : 'Missing'
+      });
       
       console.log(`Successfully authenticated ${user.email} with Google`);
       
@@ -244,7 +281,7 @@ export async function signInWithGoogle(): Promise<{success: boolean, error?: str
           email: user.email,
           displayName: user.displayName,
           accessToken,
-          refreshToken: '', // Google doesn't provide refresh token via popup
+          refreshToken, // Now we might have a refresh token from Google
           profilePicture: user.photoURL || undefined
         });
         
