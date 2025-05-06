@@ -5,7 +5,9 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   getRedirectResult,
-  GoogleAuthProvider 
+  GoogleAuthProvider,
+  connectAuthEmulator,
+  signOut
 } from "firebase/auth";
 import { 
   getFirestore, 
@@ -45,6 +47,25 @@ try {
 // Initialize authentication
 const auth = getAuth(app);
 
+// Check if we should connect to Auth emulator
+const useEmulator = 
+  import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true' || 
+  import.meta.env.NODE_ENV === 'development' || 
+  window.location.hostname === 'localhost';
+
+if (useEmulator) {
+  const emulatorHost = window.location.hostname === 'localhost' ? 'localhost' : window.location.hostname;
+  const emulatorPort = 9099;
+  console.log(`Connecting to Firebase Auth emulator at ${emulatorHost}:${emulatorPort}`);
+  
+  try {
+    connectAuthEmulator(auth, `http://${emulatorHost}:${emulatorPort}`);
+    console.log('Successfully connected to Firebase Auth emulator');
+  } catch (error) {
+    console.error('Failed to connect to Firebase Auth emulator:', error);
+  }
+}
+
 // Function to initialize Firestore with optimized configuration
 function initializeFirestoreDB(): Firestore | null {
   try {
@@ -57,14 +78,29 @@ function initializeFirestoreDB(): Firestore | null {
     console.log('Initializing Firestore connection...');
     
     // Check for emulator configuration
-    const useEmulator = import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true';
+    // Default to using emulator in development environments
+    const useEmulator = 
+      import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true' || 
+      import.meta.env.NODE_ENV === 'development' || 
+      window.location.hostname === 'localhost';
     
     let db: Firestore;
     
     if (useEmulator) {
       console.log('Using Firestore emulator');
       db = getFirestore(app);
-      connectFirestoreEmulator(db, 'localhost', 8080);
+      
+      // Use 0.0.0.0 equivalent for the current host
+      const emulatorHost = window.location.hostname === 'localhost' ? 'localhost' : window.location.hostname;
+      console.log(`Connecting to Firestore emulator at ${emulatorHost}:8080`);
+      
+      try {
+        connectFirestoreEmulator(db, emulatorHost, 8080);
+        console.log('Successfully connected to Firestore emulator');
+      } catch (error) {
+        console.error('Failed to connect to Firestore emulator:', error);
+        // Fall back to regular Firestore if emulator connection fails
+      }
     } else {
       console.log('Using production Firestore with optimization settings');
       // Initialize with settings to avoid WebChannel connection issues
