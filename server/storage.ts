@@ -14,6 +14,7 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserByGoogleId(googleId: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  updateUser(id: number, updates: Partial<InsertUser>): Promise<User | undefined>;
   updateUserTokens(id: number, accessToken: string, refreshToken: string): Promise<User | undefined>;
 
   // Workout operations
@@ -215,18 +216,30 @@ export class MemStorage implements IStorage {
     return newUser;
   }
 
-  async updateUserTokens(id: number, accessToken: string, refreshToken: string): Promise<User | undefined> {
+  async updateUser(id: number, updates: Partial<InsertUser>): Promise<User | undefined> {
     const user = await this.getUser(id);
     if (!user) return undefined;
     
     const updatedUser: User = { 
-      ...user, 
-      googleAccessToken: accessToken,
-      googleRefreshToken: refreshToken 
+      ...user,
+      ...updates,
+      // Ensure these remain null if they're not in the updates
+      googleId: updates.googleId !== undefined ? updates.googleId : user.googleId,
+      firebaseUid: updates.firebaseUid !== undefined ? updates.firebaseUid : user.firebaseUid,
+      googleAccessToken: updates.googleAccessToken !== undefined ? updates.googleAccessToken : user.googleAccessToken,
+      googleRefreshToken: updates.googleRefreshToken !== undefined ? updates.googleRefreshToken : user.googleRefreshToken,
+      profilePicture: updates.profilePicture !== undefined ? updates.profilePicture : user.profilePicture
     };
     
     this.users.set(id, updatedUser);
     return updatedUser;
+  }
+
+  async updateUserTokens(id: number, accessToken: string, refreshToken: string): Promise<User | undefined> {
+    return this.updateUser(id, {
+      googleAccessToken: accessToken,
+      googleRefreshToken: refreshToken
+    });
   }
 
   // Workout operations

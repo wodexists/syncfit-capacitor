@@ -89,14 +89,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
           username: displayName || email.split('@')[0],
           googleAccessToken: accessToken || '',
           googleRefreshToken: refreshToken || '',
-          profilePicture: profilePicture || ''
+          profilePicture: profilePicture || '',
+          firebaseUid: googleId // Set Firebase UID to be the same as Google ID
         });
-        console.log(`New user created with ID: ${user.id}`);
+        console.log(`New user created with ID: ${user.id}, Firebase UID: ${googleId}`);
       } else {
-        // Update tokens
+        // Update tokens and ensure Firebase UID is set
         console.log(`Updating tokens for existing user: ${user.id}`);
-        user = await storage.updateUserTokens(user.id, accessToken || '', refreshToken || '') || user;
-        console.log(`User tokens updated, access token present: ${!!user.googleAccessToken}`);
+        
+        // If Firebase UID is missing, update it along with tokens
+        if (!user.firebaseUid) {
+          console.log(`Adding missing Firebase UID (${googleId}) to user ${user.id}`);
+          try {
+            const updatedUser = await storage.updateUser(user.id, {
+              googleAccessToken: accessToken || '',
+              googleRefreshToken: refreshToken || '',
+              firebaseUid: googleId
+            });
+            
+            // If update successful, use updated user
+            if (updatedUser) {
+              user = updatedUser;
+              console.log(`Updated user with Firebase UID: ${user.firebaseUid}`);
+            }
+          } catch (error) {
+            console.error(`Failed to update user with Firebase UID:`, error);
+          }
+        } else {
+          // Just update tokens
+          try {
+            const updatedUser = await storage.updateUserTokens(user.id, accessToken || '', refreshToken || '');
+            if (updatedUser) {
+              user = updatedUser;
+            }
+          } catch (error) {
+            console.error(`Failed to update user tokens:`, error);
+          }
+        }
+        
+        console.log(`User tokens updated, access token present: ${!!user.googleAccessToken}, Firebase UID: ${user.firebaseUid || 'Missing'}`);
       }
       
       // Set session

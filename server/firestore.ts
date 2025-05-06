@@ -115,7 +115,7 @@ export class FirestoreStorage implements IStorage {
     return newUser;
   }
   
-  async updateUserTokens(id: number, accessToken: string, refreshToken: string): Promise<User | undefined> {
+  async updateUser(id: number, updates: Partial<InsertUser>): Promise<User | undefined> {
     const userRef = this.db.collection('users').doc(id.toString());
     const userDoc = await userRef.get();
     
@@ -125,17 +125,20 @@ export class FirestoreStorage implements IStorage {
     
     const userData = userDoc.data() as User;
     const updatedUser: User = { 
-      ...userData, 
-      googleAccessToken: accessToken, 
-      googleRefreshToken: refreshToken 
+      ...userData,
+      ...updates
     };
     
-    await userRef.update({ 
-      googleAccessToken: accessToken, 
-      googleRefreshToken: refreshToken 
-    });
+    await userRef.update(updates);
     
     return updatedUser;
+  }
+  
+  async updateUserTokens(id: number, accessToken: string, refreshToken: string): Promise<User | undefined> {
+    return this.updateUser(id, {
+      googleAccessToken: accessToken,
+      googleRefreshToken: refreshToken
+    });
   }
 
   // Workout operations
