@@ -102,26 +102,17 @@ function initializeFirestoreDB(): Firestore | null {
         // Fall back to regular Firestore if emulator connection fails
       }
     } else {
-      console.log('Using production Firestore with fallback optimization settings');
-      // Try to initialize with more reliable connection settings
-      // The transport errors suggest we need a different approach for WebChannel
-      try {
-        // First attempt with default settings for modern browsers
-        db = getFirestore(app);
-        console.log('Using standard Firestore configuration');
-      } catch (err) {
-        console.error('Standard Firestore initialization failed, trying fallback:', err);
-        
-        // Second attempt with long polling explicitly enabled
-        // This is more reliable in problematic network environments
-        db = initializeFirestore(app, {
-          localCache: persistentLocalCache({ 
-            cacheSizeBytes: CACHE_SIZE_UNLIMITED 
-          }),
-          experimentalForceLongPolling: true
-        });
-        console.log('Using fallback Firestore configuration with long polling');
-      }
+      console.log('Using production Firestore with improved reliability settings');
+      
+      // Always use long polling for increased reliability
+      // Long polling is more reliable in problematic network environments and with Replit
+      db = initializeFirestore(app, {
+        localCache: persistentLocalCache({ 
+          cacheSizeBytes: CACHE_SIZE_UNLIMITED 
+        }),
+        experimentalForceLongPolling: true
+      });
+      console.log('Using Firestore configuration with long polling for improved reliability');
     }
     
     console.log('Firestore initialization completed');
