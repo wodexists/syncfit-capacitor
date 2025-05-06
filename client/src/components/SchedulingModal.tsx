@@ -55,7 +55,17 @@ interface SchedulingModalProps {
 }
 
 export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: SchedulingModalProps) {
-  const [mode, setMode] = useState<SchedulingMode>("smart");
+  // Get scheduling mode from localStorage or default to "smart"
+  const [mode, setMode] = useState<SchedulingMode>(() => {
+    const savedMode = localStorage.getItem('syncfit_scheduling_mode');
+    return (savedMode === 'smart' || savedMode === 'manual') ? savedMode : "smart";
+  });
+  
+  // Save scheduling mode to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('syncfit_scheduling_mode', mode);
+  }, [mode]);
+  
   const [scheduleTab, setScheduleTab] = useState<SchedulingTab>("single");
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<string | null>(null);
   const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
@@ -877,7 +887,7 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
         
         {availableSlots.length > 0 ? (
           <RadioGroup value={selectedTimeSlot || undefined} onValueChange={setSelectedTimeSlot}>
-            <div className="space-y-2">
+            <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-1">
               {availableSlots.map((slot, index) => {
                 const startDate = new Date(slot.start);
                 const endDate = new Date(slot.end);
