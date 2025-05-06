@@ -520,7 +520,7 @@ export async function signInWithEmail(email: string, password: string): Promise<
  */
 export async function signOut(): Promise<boolean> {
   try {
-    await auth.signOut();
+    await firebaseSignOut(auth);
     await apiRequest('POST', '/api/auth/logout', {});
     return true;
   } catch (error) {
