@@ -837,7 +837,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         startTime,
         endTime,
         undefined,
-        user.googleRefreshToken
+        user.googleRefreshToken || undefined
       );
       
       if (!isAvailable) {
@@ -857,7 +857,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         startTime,
         endTime,
         reminderMinutes,
-        user.googleRefreshToken
+        user.googleRefreshToken || undefined
       );
       
       res.status(201).json({ 
@@ -1010,7 +1010,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         startTime,
         endTime,
         undefined,
-        user.googleRefreshToken
+        user.googleRefreshToken || undefined
       );
       
       if (!isFirstSlotAvailable) {
@@ -1028,7 +1028,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         endTime,
         pattern,
         reminderMinutes,
-        user.googleRefreshToken
+        user.googleRefreshToken || undefined
       );
       
       // Return the created events' IDs and details
@@ -1099,7 +1099,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`Calendar API: User has access token (first 10 chars): ${user.googleAccessToken.substring(0, 10)}...`);
       
       // Make the API call
-      const calendars = await GoogleCalendarService.getCalendarList(user.googleAccessToken, user.googleRefreshToken);
+      const calendars = await GoogleCalendarService.getCalendarList(
+        user.googleAccessToken, 
+        user.googleRefreshToken || undefined
+      );
       console.log(`Calendar API: Successfully retrieved ${calendars.length} calendars`);
       
       // Get user preferences to mark selected calendars
