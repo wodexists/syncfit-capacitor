@@ -1,0 +1,23 @@
+🧪 Starting Failure Simulation Test (intended to fail)
+This test validates that failures are properly detected and reported
+🧪 Starting mock Calendar API...
+✅ Mock Calendar API started successfully
+🧪 Running failure simulation test...
+Starting Failure Simulation Test...
+This test is designed to trigger a 500 error and properly report it.
+Verifying mock Calendar API is available...
+Mock API test endpoint response: {
+  status: 'success',
+  message: 'Mock Calendar API is working',
+  timestamp: '2025-05-06T10:06:39.105Z'
+}
+Triggering intentional server error...
+✅ Successfully received expected 500 error from mock API
+Error details: {
+  error: { code: 500, message: 'Internal server error', errors: [ [Object] ] }
+}
+❌ TEST FAILED AS EXPECTED - This is good for validation purposes
+✅ Failure test correctly failed with exit code 1
+This is the expected behavior and validates our error detection
+🧪 Cleaning up...
+🧪 Test complete. Log available at: test-artifacts/failure_test_20250506_100635.log

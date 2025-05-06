@@ -1,0 +1,25 @@
+⚠  emulators: You are not currently authenticated so some features may not work correctly. Please run firebase login to authenticate the CLI.
+i  emulators: Starting emulators: auth, firestore
+⚠  ui: Not starting the ui emulator, make sure you have run firebase init.
+⚠  hub: Error when trying to check port 4400 on ::1: Error: listen EADDRNOTAVAIL: address not available ::1:4400
+⚠  hub: Port 4400 is available on 127.0.0.1 but not ::1. This may cause issues with some clients.
+⚠  hub: If you encounter connectivity issues, consider switching to a different port or explicitly specifying "host": "<ip address>" instead of hostname in firebase.json
+⚠  ui: Error when trying to check port 4000 on ::1: Error: listen EADDRNOTAVAIL: address not available ::1:4000
+⚠  ui: Port 4000 is available on 127.0.0.1 but not ::1. This may cause issues with some clients.
+⚠  ui: If you encounter connectivity issues, consider switching to a different port or explicitly specifying "host": "<ip address>" instead of hostname in firebase.json
+⚠  logging: Error when trying to check port 4500 on ::1: Error: listen EADDRNOTAVAIL: address not available ::1:4500
+⚠  logging: Port 4500 is available on 127.0.0.1 but not ::1. This may cause issues with some clients.
+⚠  logging: If you encounter connectivity issues, consider switching to a different port or explicitly specifying "host": "<ip address>" instead of hostname in firebase.json
+⚠  auth: Error when trying to check port 9099 on ::1: Error: listen EADDRNOTAVAIL: address not available ::1:9099
+⚠  auth: Port 9099 is available on 127.0.0.1 but not ::1. This may cause issues with some clients.
+⚠  auth: If you encounter connectivity issues, consider switching to a different port or explicitly specifying "host": "<ip address>" instead of hostname in firebase.json
+⚠  firestore: Error when trying to check port 8080 on ::1: Error: listen EADDRNOTAVAIL: address not available ::1:8080
+⚠  firestore: Port 8080 is available on 127.0.0.1 but not ::1. This may cause issues with some clients.
+⚠  firestore: If you encounter connectivity issues, consider switching to a different port or explicitly specifying "host": "<ip address>" instead of hostname in firebase.json
+⚠  firestore.websocket: Error when trying to check port 9150 on ::1: Error: listen EADDRNOTAVAIL: address not available ::1:9150
+⚠  firestore: Port 9150 is available on 127.0.0.1 but not ::1. This may cause issues with some clients.
+⚠  firestore: If you encounter connectivity issues, consider switching to a different port or explicitly specifying "host": "<ip address>" instead of hostname in firebase.json
+⚠  emulators: It seems that you are running multiple instances of the emulator suite for project syncfit-dev. This may result in unexpected behavior.
+⚠  emulators: Could not find import/export metadata file, skipping data import!
+i  firestore: downloading cloud-firestore-emulator-v1.19.8.jar...
+

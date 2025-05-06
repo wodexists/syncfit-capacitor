@@ -1,0 +1,4 @@
+⚠  emulators: You are not currently authenticated so some features may not work correctly. Please run firebase login to authenticate the CLI.
+i  emulators: Starting emulators: auth, firestore
+⚠  emulators: It seems that you are running multiple instances of the emulator suite for project syncfit-dev. This may result in unexpected behavior.
+i  firestore: downloading cloud-firestore-emulator-v1.19.8.jar...
