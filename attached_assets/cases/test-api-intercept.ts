@@ -1,6 +1,5 @@
-import { initAuth, signInWithGoogle } from '../mocks/auth-mock';
-import { syncCalendars, getAvailableTimeSlots, createCalendarEvent } from '../mocks/calendar-mock';
-import { mockAPIResponse, setupInterceptor, getInterceptedCalls } from '../mocks/api-intercept-mock';
+// Simple test for API interception and response handling
+console.log('Starting API Intercept Test...');
 
 /**
  * Test API response interception and handling
