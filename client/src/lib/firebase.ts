@@ -35,13 +35,33 @@ console.log(`Current URL: ${window.location.href}`);
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 
-// Configure Firestore with improved settings
-const db = initializeFirestore(app, {
-  localCache: persistentLocalCache({ cacheSizeBytes: CACHE_SIZE_UNLIMITED })
-});
+// Configure Firestore with improved settings based on environment
+let db;
 
-// Log Firestore initialization
-console.log("Firestore initialized with persistent cache");
+// Function to setup Firestore with the right configuration
+const setupFirestore = () => {
+  // Allow connecting to emulator in development 
+  const useEmulator = import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true';
+  const emulatorHost = import.meta.env.VITE_FIRESTORE_EMULATOR_HOST || 'localhost:8080';
+
+  if (useEmulator) {
+    console.log(`Connecting to Firestore emulator at ${emulatorHost}`);
+    // Use standard initialization when connecting to emulator
+    db = getFirestore(app);
+    connectFirestoreEmulator(db, 'localhost', 8080);
+  } else {
+    // Production configuration with persistent cache
+    db = initializeFirestore(app, {
+      localCache: persistentLocalCache({ cacheSizeBytes: CACHE_SIZE_UNLIMITED })
+    });
+  }
+  
+  console.log(`Firestore initialized: ${useEmulator ? 'emulator mode' : 'production mode'}`);
+  return db;
+};
+
+// Set up Firestore
+db = setupFirestore();
 
 // Configure Google Auth Provider with required scopes for Calendar
 const provider = new GoogleAuthProvider();

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Check, RefreshCw, Info, X, AlertCircle, AlertTriangle, RotateCw, Calendar } from "lucide-react";
+import { Check, RefreshCw, Info, X, AlertCircle, AlertTriangle, RotateCw, Calendar, Database } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Card } from "@/components/ui/card";
 import { useAuth } from "@/hooks/useAuth";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { getSyncEvents } from "@/lib/firestoreSync";
 
 interface SyncCounts {
   total: number;
@@ -40,6 +41,8 @@ export function SyncStatus() {
   const [retrying, setRetrying] = useState(false);
   const [connectivityIssue, setConnectivityIssue] = useState(false);
   const [recoveryAttempts, setRecoveryAttempts] = useState(0);
+  const [firestoreIssue, setFirestoreIssue] = useState(false);
+  const [firestoreEvents, setFirestoreEvents] = useState<any[]>([]);
   // Developer diagnostics panel state
   const [showDiagnostics, setShowDiagnostics] = useState(false);
 
@@ -48,6 +51,7 @@ export function SyncStatus() {
       try {
         setLoading(true);
         setConnectivityIssue(false);
+        setFirestoreIssue(false);
         
         console.log("SyncStatus: Starting Google Calendar API check...");
         
@@ -100,6 +104,28 @@ export function SyncStatus() {
         
         // Update last checked timestamp
         setLastChecked(new Date());
+        
+        // Check Firestore connectivity and sync logs
+        try {
+          console.log("Checking Firestore connectivity...");
+          // Test Firestore connectivity by trying to get sync events
+          if (user?.id) {
+            const syncResult = await getSyncEvents(user.id);
+            
+            if (!syncResult.success) {
+              console.error("Firestore connectivity issue detected:", syncResult.error);
+              setFirestoreIssue(true);
+              setFirestoreEvents([]);
+            } else {
+              console.log(`SyncStatus: Retrieved ${syncResult.events.length} Firestore sync events`);
+              setFirestoreIssue(false);
+              setFirestoreEvents(syncResult.events);
+            }
+          }
+        } catch (error) {
+          console.error("Error checking Firestore status:", error);
+          setFirestoreIssue(true);
+        }
         
         // Still try to get event counts even if API issues
         const counts = await getEventStatusCounts(user.firebaseUid);

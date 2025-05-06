@@ -1,0 +1,211 @@
+Root Issue: Firestore 400 Errors Due to Auth or Misconfig
+
+Your logs repeatedly show:
+
+GET https://firestore.googleapis.com/... [HTTP/3 400]
+@firebase/firestore: WebChannelConnection RPC 'Write' stream transport errored.
+
+This is not just transient — it's systemic:
+
+    ✅ Google Calendar API is authenticated and responds with events.
+
+    ❌ Firestore writes fail, breaking:
+
+        Sync event logging
+
+        State update (e.g. "synced" vs "pending")
+
+        End-to-end test confirmation
+
+🚨 Why Your Automated Tests Still “Pass”
+
+Tests are passing because they:
+
+    Use mocked responses for calendar.list, events.insert, etc.
+
+    Don’t validate actual Firestore write outcomes.
+
+    Bypass error states like missing refresh tokens or WebChannel transport failures.
+
+This is a false positive: the app thinks it’s reliable, but it’s broken at the integration layer.
+✅ What You Now Need (Updated Checklist)
+✅ 1. Fix Firestore CORS/Auth Error
+
+    🔍 Confirm you're using the correct Firebase project ID in your firebaseConfig.
+
+    🛠 Ensure Firestore rules allow writes from authenticated users (or relax to test).
+
+Example:
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if true; // TEMP for dev only
+    }
+  }
+}
+
+✅ 2. Extend E2E Tests to Include Firestore Validation
+
+Update test cases to:
+
+    Mock API and Firestore writes (e.g., via Firebase Emulator Suite or Firestore REST mock)
+
+    Validate full flow: token → calendar list → event → Firestore state
+
+Example:
+
+test("Schedule workout syncs to Firestore", async () => {
+  const res = await scheduleWorkout();
+  expect(res.status).toBe(200);
+
+  const firestoreState = await getFirestoreEvent(userId);
+  expect(firestoreState.status).toBe("synced");
+});
+
+✅ 3. Add Diagnostic on Firestore Failures
+
+    Log Firestore write failures explicitly to UI (not just dev console)
+
+    E.g., "⚠ Could not write to sync log – please check calendar permissions"
+
+✅ 4. Update Replit Test Config
+
+Make sure:
+
+    All Firebase env variables are set properly in Replit Secrets
+
+        FIREBASE_API_KEY
+
+        FIREBASE_PROJECT_ID
+
+        FIREBASE_AUTH_DOMAIN
+
+        FIREBASE_DATABASE_URL (if used)
+
+    Emulator fallback is available for test runs (optional but ideal)
+
+Would you like a ready-made test script and Firestore fallback config to try immediately?
+You said:
+yes
+ChatGPT said:
+
+Great — here’s what you need for automated, end-to-end tests of Google Calendar + Firestore sync in Replit (without relying on production writes).
+✅ 1. 🔧 Firestore Test Config (Use Emulator or Relaxed Rules for Dev)
+Option A: Firestore Emulator Setup (Best for mocking writes reliably)
+
+Add this to your .env or Replit Secrets:
+
+FIRESTORE_EMULATOR_HOST=localhost:8080
+
+And ensure your firebase.initializeApp() block points to emulator if detected:
+
+import firebase from 'firebase/app';
+import 'firebase/firestore';
+
+firebase.initializeApp({
+  apiKey: process.env.FIREBASE_API_KEY,
+  authDomain: process.env.FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.FIREBASE_PROJECT_ID,
+});
+
+if (window.location.hostname === 'localhost') {
+  firebase.firestore().useEmulator('localhost', 8080);
+}
+
+Option B: Relaxed Firestore Rules (Quick Dev Testing)
+
+Temporarily replace Firestore rules in the Firebase console:
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}
+
+Then restore strict rules before going live.
+✅ 2. 🧪 E2E Test Script (Calendar + Firestore Sync)
+
+Here’s a mock test using Jest + Axios:
+
+// test/googleCalendarSync.test.ts
+import axios from 'axios';
+
+const API_URL = 'http://localhost:3000'; // or your Replit URL
+
+describe('End-to-End Calendar Sync', () => {
+  let token: string;
+
+  beforeAll(async () => {
+    const authRes = await axios.post(`${API_URL}/api/test-login`, {
+      email: 'testuser@example.com',
+    });
+    token = authRes.data.token;
+  });
+
+  it('should sync an event and log it to Firestore', async () => {
+    const eventRes = await axios.post(
+      `${API_URL}/api/calendar/schedule`,
+      {
+        title: 'Test Workout',
+        duration: 30,
+        date: '2025-05-06',
+      },
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+
+    expect(eventRes.status).toBe(200);
+    expect(eventRes.data.success).toBe(true);
+
+    const syncLog = await axios.get(`${API_URL}/api/sync-log`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    expect(syncLog.data.events).toContainEqual(
+      expect.objectContaining({
+        title: 'Test Workout',
+        status: 'synced',
+      })
+    );
+  });
+});
+
+✅ 3. 🔍 Backend Enhancements to Support Testing
+
+Update /auth/user to include tokens in dev/test mode:
+
+if (process.env.NODE_ENV !== 'production') {
+  user.googleToken = storedAccessToken;
+  user.firebaseUID = firebaseUserId;
+}
+
+Create test-only routes in routes/test.ts (protected by an env flag):
+
+app.post('/api/test-login', async (req, res) => {
+  if (process.env.NODE_ENV === 'production') return res.status(403).end();
+
+  const mockUser = await createTestUser();
+  const token = await getFirebaseTokenFor(mockUser);
+  res.json({ token });
+});
+
+✅ 4. 🔄 Sync Log Storage in Firestore
+
+Each time an event is scheduled, also log to Firestore:
+
+await firestore
+  .collection('syncEvents')
+  .doc(userId)
+  .collection('events')
+  .add({
+    title: 'Test Workout',
+    time: new Date().toISOString(),
+    status: 'synced',
+  });
+
