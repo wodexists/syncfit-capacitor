@@ -10,6 +10,7 @@ import Stats from "@/pages/Stats";
 import Profile from "@/pages/Profile";
 import Login from "@/pages/Login";
 import TestCalendar from "@/pages/TestCalendar";
+import AuthTest from "@/pages/AuthTest";
 import Header from "@/components/Header";
 import Navigation from "@/components/Navigation";
 import CalendarSelector from "@/components/CalendarSelector";
@@ -134,6 +135,11 @@ function App() {
               {/* Test Calendar Page */}
               <Route path="/test-calendar">
                 {authContext.isAuthenticated ? <TestCalendar /> : <Login />}
+              </Route>
+              
+              {/* Authentication Test Page */}
+              <Route path="/auth-test">
+                <AuthTest />
               </Route>
               
               {/* Fallback to 404 */}
