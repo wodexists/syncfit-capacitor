@@ -4,10 +4,17 @@ import { runInitialSyncTest } from './cases/test-initial-sync';
 import { runSmartSlotTest } from './cases/test-smart-slots';
 import { runWorkoutSchedulingTest } from './cases/test-schedule-workout';
 import { runConflictDetectionTest } from './cases/test-conflict-detection';
+import { runErrorHandlingTest } from './cases/test-error-handling';
+
+interface TestResult {
+  name: string;
+  success: boolean;
+  error?: any;
+}
 
 async function runTests() {
   console.log('Starting SyncFit E2E Test Runner...');
-  const results = [];
+  const results: TestResult[] = [];
 
   try {
     results.push(await runAuthTest());
@@ -15,6 +22,7 @@ async function runTests() {
     results.push(await runSmartSlotTest());
     results.push(await runWorkoutSchedulingTest());
     results.push(await runConflictDetectionTest());
+    results.push(await runErrorHandlingTest());
   } catch (error) {
     console.error('Test execution failed:', error);
     process.exit(1);

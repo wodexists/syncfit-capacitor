@@ -1,34 +1,52 @@
-import { initAuth, signInWithGoogle, signOut, getCurrentUser } from '../mocks/auth-mock';
+import { initAuth, signInWithGoogle, signOut, getCurrentUser, getAuthToken } from '../mocks/auth-mock';
 
 export async function runAuthTest() {
-  console.log('\nRunning Auth Test...');
+  console.log('\nRunning Authentication Test...');
   try {
-    // Initialize auth
+    // Initialize authentication system
     await initAuth();
-    console.log('✓ Auth initialized');
+    console.log('✓ Auth system initialized');
     
-    // Sign in with Google
-    const user = await signInWithGoogle({ email: 'test@example.com', name: 'Test User' });
-    console.log('✓ Signed in with Google');
+    // Test sign in with Google
+    const testUserData = { email: 'test@example.com', name: 'Test User' };
+    const user = await signInWithGoogle(testUserData);
     
-    // Verify user is signed in
-    const currentUser = await getCurrentUser();
-    if (!currentUser || currentUser.uid !== user.uid) {
-      throw new Error('User not found after sign in');
+    if (!user || !user.uid || user.email !== testUserData.email) {
+      throw new Error('Failed to sign in user with Google');
     }
-    console.log('✓ User verified');
+    console.log('✓ Successfully signed in with Google');
     
-    // Sign out
+    // Test getting current user
+    const currentUser = await getCurrentUser();
+    
+    if (!currentUser || currentUser.uid !== user.uid) {
+      throw new Error('Failed to get current user');
+    }
+    console.log('✓ Successfully retrieved current user');
+    
+    // Test getting auth token
+    const token = await getAuthToken();
+    
+    if (!token) {
+      throw new Error('Failed to get auth token');
+    }
+    console.log('✓ Successfully retrieved auth token');
+    
+    // Test sign out
     await signOut();
-    const afterSignOut = await getCurrentUser();
-    if (afterSignOut) {
+    const userAfterSignOut = await getCurrentUser();
+    
+    if (userAfterSignOut) {
       throw new Error('User still signed in after sign out');
     }
-    console.log('✓ Sign out successful');
+    console.log('✓ Successfully signed out');
     
-    return { name: 'Auth Test', success: true };
+    // Sign in again for other tests
+    await signInWithGoogle(testUserData);
+    
+    return { name: 'Authentication Test', success: true };
   } catch (error) {
-    console.error('Auth Test Failed:', error);
-    return { name: 'Auth Test', success: false, error };
+    console.error('Authentication Test Failed:', error);
+    return { name: 'Authentication Test', success: false, error };
   }
 }

@@ -1,46 +1,43 @@
 import { initAuth, signInWithGoogle } from '../mocks/auth-mock';
-import { syncCalendars, getCalendarsList, setSelectedCalendars } from '../mocks/calendar-mock';
+import { syncCalendars, getCalendarsList } from '../mocks/calendar-mock';
 
 export async function runInitialSyncTest() {
-  console.log('\nRunning Initial Sync Test...');
+  console.log('\nRunning Initial Calendar Sync Test...');
   try {
-    // Sign in with test user
+    // Initialize authentication system
     await initAuth();
     const user = await signInWithGoogle({ email: 'test@example.com', name: 'Test User' });
     console.log('✓ Test user signed in');
     
-    // Initialize calendar sync
+    // Test initial calendar sync
     await syncCalendars(user.uid);
-    console.log('✓ Calendar sync initialized');
+    console.log('✓ Initial calendar sync completed');
     
-    // Get available calendars
+    // Test calendar list retrieval
     const calendars = await getCalendarsList(user.uid);
+    
     if (!calendars || calendars.length === 0) {
-      throw new Error('No calendars found after initial sync');
+      throw new Error('No calendars found after sync');
     }
+    
     console.log(`✓ Found ${calendars.length} calendars`);
     
-    // Test calendar selection
-    const selectedIds = [calendars[0].id];
-    await setSelectedCalendars(user.uid, selectedIds);
+    // Test primary calendar exists and is selected by default
+    const primaryCalendar = calendars.find(cal => cal.primary);
     
-    // Verify selection was saved
-    const afterSelection = await getCalendarsList(user.uid);
-    const selectedCalendars = afterSelection.filter(cal => cal.selected);
-    
-    if (selectedCalendars.length !== selectedIds.length) {
-      throw new Error(`Expected ${selectedIds.length} selected calendars, got ${selectedCalendars.length}`);
+    if (!primaryCalendar) {
+      throw new Error('No primary calendar found');
     }
     
-    if (selectedCalendars[0].id !== selectedIds[0]) {
-      throw new Error('Selected calendar does not match expected ID');
+    if (!primaryCalendar.selected) {
+      throw new Error('Primary calendar is not selected by default');
     }
     
-    console.log('✓ Calendar selection successful');
+    console.log('✓ Primary calendar found and is selected by default');
     
-    return { name: 'Initial Sync Test', success: true };
+    return { name: 'Initial Calendar Sync Test', success: true };
   } catch (error) {
-    console.error('Initial Sync Test Failed:', error);
-    return { name: 'Initial Sync Test', success: false, error };
+    console.error('Initial Calendar Sync Test Failed:', error);
+    return { name: 'Initial Calendar Sync Test', success: false, error };
   }
 }
