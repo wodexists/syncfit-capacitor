@@ -886,7 +886,7 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
         
         {availableSlots.length > 0 ? (
           <RadioGroup value={selectedTimeSlot || undefined} onValueChange={setSelectedTimeSlot}>
-            <div className="space-y-2 max-h-[30vh] overflow-y-auto pr-1 py-1" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
+            <div className="space-y-2 max-h-[45vh] md:max-h-[30vh] overflow-y-auto pr-1 py-1 scrollable-mobile" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain', scrollbarWidth: 'thin' }}>
               {availableSlots.map((slot, index) => {
                 const startDate = new Date(slot.start);
                 const endDate = new Date(slot.end);
@@ -993,7 +993,7 @@ export default function SchedulingModal({ isOpen, onClose, selectedWorkout }: Sc
             <DialogTitle className="text-xl font-semibold">Schedule Workout</DialogTitle>
           </DialogHeader>
           
-          <div className="py-4">
+          <div className="py-4 overflow-y-auto max-h-[60vh]">
             {recurringEnabled && (
               <Tabs value={scheduleTab} onValueChange={(value) => setScheduleTab(value as SchedulingTab)} className="mb-6">
                 <TabsList className="grid w-full grid-cols-2">

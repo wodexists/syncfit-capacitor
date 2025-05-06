@@ -1,0 +1,24 @@
+/* Add mobile-specific styles for modals */
+@media (max-width: 640px) {
+  /* Make any containers with scrollable class actually scrollable on mobile */
+  .scrollable-mobile {
+    -webkit-overflow-scrolling: touch !important;
+    overflow-y: auto !important;
+    max-height: 45vh !important;
+    overscroll-behavior: contain;
+    will-change: transform; /* Hardware acceleration for smooth scrolling */
+    position: relative;
+  }
+
+  /* Fix for any dialog content that might be incorrectly sized on mobile */
+  [role="dialog"] [role="document"] {
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  /* Ensure modal content doesn't overflow the screen */
+  [role="dialog"] [role="document"] > div {
+    overflow-y: auto;
+  }
+}
