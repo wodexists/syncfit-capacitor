@@ -49,8 +49,11 @@ export async function logSyncEvent(
       status: details.status || 'pending',
     };
 
-    // Create user sync events collection reference
-    const userSyncRef = collection(db!, 'syncEvents', userId.toString(), 'events');
+    // Create user sync events collection reference with proper path structure
+    // Ensure the reference is constructed properly to avoid "Expected first argument to collection()" errors
+    const syncEventsCollection = collection(db!, 'syncEvents');
+    const userDoc = doc(syncEventsCollection, userId.toString());
+    const userSyncRef = collection(userDoc, 'events');
     
     // Log with detailed error information when applicable
     console.log(`Logging sync event to Firestore: ${eventType} - ${details.status || 'pending'}`);
@@ -92,8 +95,10 @@ export async function updateSyncEventStatus(
   }
   
   try {
-    // Create user sync events collection reference
-    const userSyncRef = collection(db!, 'syncEvents', userId.toString(), 'events');
+    // Create user sync events collection reference with proper path structure
+    const syncEventsCollection = collection(db!, 'syncEvents');
+    const userDoc = doc(syncEventsCollection, userId.toString());
+    const userSyncRef = collection(userDoc, 'events');
     
     // Query for the event with the matching Google Event ID
     const q = query(userSyncRef, where("eventId", "==", googleEventId));
@@ -142,8 +147,10 @@ export async function getSyncEvents(userId: number) {
   }
   
   try {
-    // Create user sync events collection reference
-    const userSyncRef = collection(db!, 'syncEvents', userId.toString(), 'events');
+    // Create user sync events collection reference with proper path structure
+    const syncEventsCollection = collection(db!, 'syncEvents');
+    const userDoc = doc(syncEventsCollection, userId.toString());
+    const userSyncRef = collection(userDoc, 'events');
     
     // Get all events
     const querySnapshot = await getDocs(userSyncRef);

@@ -72,9 +72,10 @@ function initializeFirestoreDB(): Firestore | null {
         localCache: persistentLocalCache({ 
           cacheSizeBytes: CACHE_SIZE_UNLIMITED 
         }),
-        // These settings help prevent CORS/connection issues in Replit environment
-        experimentalForceLongPolling: true, 
-        experimentalAutoDetectLongPolling: true
+        // Only use ONE of these options to prevent Firebase errors
+        // Firebase Error: experimentalForceLongPolling and experimentalAutoDetectLongPolling cannot be used together
+        experimentalForceLongPolling: true
+        // experimentalAutoDetectLongPolling: false
       });
     }
     
