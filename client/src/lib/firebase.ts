@@ -12,7 +12,8 @@ import {
   connectFirestoreEmulator,
   initializeFirestore,
   persistentLocalCache,
-  CACHE_SIZE_UNLIMITED
+  CACHE_SIZE_UNLIMITED,
+  type Firestore
 } from "firebase/firestore";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -31,37 +32,62 @@ const firebaseConfig = {
 console.log(`Firebase config - projectId: ${import.meta.env.VITE_FIREBASE_PROJECT_ID}`);
 console.log(`Current URL: ${window.location.href}`);
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+// Initialize Firebase with proper error handling
+let app: any; // Using any here to avoid TypeScript errors, will be cast to proper type when used
+try {
+  app = initializeApp(firebaseConfig);
+} catch (error) {
+  console.error('Firebase initialization failed:', error);
+  // This ensures the app doesn't crash completely
+  throw new Error(`Firebase initialization failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+}
+
+// Initialize authentication
 const auth = getAuth(app);
 
-// Configure Firestore with improved settings based on environment
-let db;
-
-// Function to setup Firestore with the right configuration
-const setupFirestore = () => {
-  // Allow connecting to emulator in development 
-  const useEmulator = import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true';
-  const emulatorHost = import.meta.env.VITE_FIRESTORE_EMULATOR_HOST || 'localhost:8080';
-
-  if (useEmulator) {
-    console.log(`Connecting to Firestore emulator at ${emulatorHost}`);
-    // Use standard initialization when connecting to emulator
-    db = getFirestore(app);
-    connectFirestoreEmulator(db, 'localhost', 8080);
-  } else {
-    // Production configuration with persistent cache
-    db = initializeFirestore(app, {
-      localCache: persistentLocalCache({ cacheSizeBytes: CACHE_SIZE_UNLIMITED })
-    });
+// Function to initialize Firestore with optimized configuration
+function initializeFirestoreDB(): Firestore | null {
+  try {
+    // Validate Firebase configuration first
+    if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
+      console.error('Firebase configuration is incomplete. Missing API key or project ID.');
+      return null;
+    }
+    
+    console.log('Initializing Firestore connection...');
+    
+    // Check for emulator configuration
+    const useEmulator = import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true';
+    
+    let db: Firestore;
+    
+    if (useEmulator) {
+      console.log('Using Firestore emulator');
+      db = getFirestore(app);
+      connectFirestoreEmulator(db, 'localhost', 8080);
+    } else {
+      console.log('Using production Firestore with optimization settings');
+      // Initialize with settings to avoid WebChannel connection issues
+      db = initializeFirestore(app, {
+        localCache: persistentLocalCache({ 
+          cacheSizeBytes: CACHE_SIZE_UNLIMITED 
+        }),
+        // These settings help prevent CORS/connection issues in Replit environment
+        experimentalForceLongPolling: true, 
+        experimentalAutoDetectLongPolling: true
+      });
+    }
+    
+    console.log('Firestore initialization completed');
+    return db;
+  } catch (error) {
+    console.error('Failed to initialize Firestore:', error);
+    return null;
   }
-  
-  console.log(`Firestore initialized: ${useEmulator ? 'emulator mode' : 'production mode'}`);
-  return db;
-};
+}
 
-// Set up Firestore
-db = setupFirestore();
+// Initialize Firestore
+const db = initializeFirestoreDB();
 
 // Configure Google Auth Provider with required scopes for Calendar
 const provider = new GoogleAuthProvider();
@@ -466,4 +492,5 @@ export async function signOut(): Promise<boolean> {
   }
 }
 
+// Export auth and db for use in other modules
 export { auth, db };

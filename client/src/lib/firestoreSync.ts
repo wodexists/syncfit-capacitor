@@ -1,8 +1,17 @@
 import { doc, collection, addDoc, updateDoc, getDocs, query, where, Timestamp, Firestore } from "firebase/firestore";
 import { db as firestoreDb } from "./firebase";
 
-// Using explicit type casting to avoid TypeScript "implicitly has an 'any' type" errors
-const db: Firestore = firestoreDb as Firestore;
+// Get the Firestore instance with null safety
+const db = firestoreDb;
+
+// Helper function to check if Firestore is available
+function isFirestoreAvailable(): boolean {
+  if (!db) {
+    console.error('Firestore is not initialized. Firebase connection may have failed.');
+    return false;
+  }
+  return true;
+}
 
 /**
  * Log sync events to Firestore for tracking and debugging
@@ -21,6 +30,16 @@ export async function logSyncEvent(
     status?: 'pending' | 'synced' | 'failed';
   }
 ) {
+  // Check if Firestore is available first
+  if (!isFirestoreAvailable()) {
+    console.warn('Skipping Firestore sync event logging - Firestore unavailable');
+    return { 
+      success: false, 
+      error: 'Firestore connection unavailable',
+      offline: true 
+    };
+  }
+  
   try {
     const eventData = {
       userId,
@@ -31,7 +50,7 @@ export async function logSyncEvent(
     };
 
     // Create user sync events collection reference
-    const userSyncRef = collection(db, 'syncEvents', userId.toString(), 'events');
+    const userSyncRef = collection(db!, 'syncEvents', userId.toString(), 'events');
     
     // Log with detailed error information when applicable
     console.log(`Logging sync event to Firestore: ${eventType} - ${details.status || 'pending'}`);
@@ -62,9 +81,19 @@ export async function updateSyncEventStatus(
   status: 'pending' | 'synced' | 'failed',
   errorMessage?: string
 ) {
+  // Check if Firestore is available
+  if (!isFirestoreAvailable()) {
+    console.warn('Skipping Firestore sync status update - Firestore unavailable');
+    return { 
+      success: false, 
+      error: 'Firestore connection unavailable',
+      offline: true 
+    };
+  }
+  
   try {
     // Create user sync events collection reference
-    const userSyncRef = collection(db, 'syncEvents', userId.toString(), 'events');
+    const userSyncRef = collection(db!, 'syncEvents', userId.toString(), 'events');
     
     // Query for the event with the matching Google Event ID
     const q = query(userSyncRef, where("eventId", "==", googleEventId));
@@ -101,9 +130,20 @@ export async function updateSyncEventStatus(
  * Get all sync events for a user
  */
 export async function getSyncEvents(userId: number) {
+  // Check if Firestore is available
+  if (!isFirestoreAvailable()) {
+    console.warn('Skipping Firestore sync events fetch - Firestore unavailable');
+    return { 
+      success: false, 
+      error: 'Firestore connection unavailable',
+      offline: true,
+      events: [] 
+    };
+  }
+  
   try {
     // Create user sync events collection reference
-    const userSyncRef = collection(db, 'syncEvents', userId.toString(), 'events');
+    const userSyncRef = collection(db!, 'syncEvents', userId.toString(), 'events');
     
     // Get all events
     const querySnapshot = await getDocs(userSyncRef);
