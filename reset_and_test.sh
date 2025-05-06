@@ -18,6 +18,16 @@ node mock_calendar_api.cjs &
 MOCK_PID=$!
 sleep 2
 
+# Verify mock server is running
+echo "🧪 Verifying mock server..."
+curl -s http://localhost:5050/calendar/test
+MOCK_STATUS=$?
+if [ $MOCK_STATUS -ne 0 ]; then
+  echo "⚠️ Mock server not responding"
+  kill $EMULATOR_PID
+  exit 1
+fi
+
 # Step 5: Run the test
 npx tsx tests/emulatorTest.ts
 TEST_RESULT=$?

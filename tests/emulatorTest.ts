@@ -81,7 +81,7 @@ async function runTest() {
     // 3. Mock calendar API call
     console.log('Testing mock calendar API...');
     try {
-      const calendarRes = await axios.get('http://localhost:5000/calendar/test');
+      const calendarRes = await axios.get('http://localhost:5050/calendar/test');
       console.log('Mock calendar API returned:', calendarRes.data);
     } catch (error: any) {
       console.error('Calendar API test failed:', error.message);
@@ -89,7 +89,7 @@ async function runTest() {
       // Fallback to our server endpoint
       try {
         console.log('Trying server mock endpoint instead...');
-        const serverMockRes = await axios.get('http://localhost:5000/api/calendar/test');
+        const serverMockRes = await axios.get('http://localhost:5050/api/calendar/test');
         console.log('Server mock endpoint returned:', serverMockRes.data);
       } catch (serverError: any) {
         console.error('Server mock endpoint also failed:', serverError.message);

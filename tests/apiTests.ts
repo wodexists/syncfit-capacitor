@@ -8,8 +8,8 @@
 import axios from 'axios';
 
 // Base URLs for our API endpoints
-const API_BASE_URL = 'http://localhost:3000/api';
-const MOCK_CALENDAR_URL = 'http://localhost:5000';
+const API_BASE_URL = 'http://localhost:5000/api';
+const MOCK_CALENDAR_URL = 'http://localhost:5050';
 
 interface TestResult {
   name: string;
