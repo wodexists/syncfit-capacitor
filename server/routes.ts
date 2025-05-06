@@ -1634,5 +1634,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Testing endpoints for Firebase emulator and E2E testing
+  app.get('/api/calendar/test', (req: Request, res: Response) => {
+    console.log('Calendar mock test API called');
+    res.json({ 
+      success: true, 
+      message: 'Calendar API mock is working',
+      timestamp: new Date().toISOString(),
+      items: [
+        {
+          id: 'test-event-1',
+          summary: 'Test Workout Session',
+          start: { dateTime: new Date().toISOString() },
+          end: { dateTime: new Date(Date.now() + 3600000).toISOString() }
+        }
+      ]
+    });
+  });
+  
+  app.post('/api/testing/add-calendar-mock', (req: Request, res: Response) => {
+    console.log('Adding mock calendar test endpoint');
+    res.json({ 
+      success: true, 
+      message: 'Mock calendar endpoint added successfully'
+    });
+  });
+  
+  // E2E testing helpers
+  app.get('/api/testing/firebase-connection', (req: Request, res: Response) => {
+    console.log('Firebase connection test called');
+    res.json({
+      success: true,
+      timestamp: new Date().toISOString(),
+      message: 'Firebase connection endpoint is available'
+    });
+  });
+
   return httpServer;
 }

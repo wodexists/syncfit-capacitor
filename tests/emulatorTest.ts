@@ -1,8 +1,21 @@
 // Phase 2: E2E Sync Test using Firebase Emulator and Calendar API mock
 
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, addDoc, getDocs, connectFirestoreEmulator } from 'firebase/firestore';
-import { getAuth, signInWithCredential, GoogleAuthProvider, connectAuthEmulator } from 'firebase/auth';
+import { 
+  getFirestore, 
+  collection, 
+  addDoc, 
+  getDocs, 
+  connectFirestoreEmulator,
+  doc
+} from 'firebase/firestore';
+import { 
+  getAuth, 
+  signInWithCredential, 
+  GoogleAuthProvider, 
+  connectAuthEmulator,
+  OAuthProvider
+} from 'firebase/auth';
 import axios from 'axios';
 
 // Setup Firebase with fake config for emulator use
@@ -27,49 +40,80 @@ async function runTest() {
 
   try {
     // 1. Fake sign-in using test credentials
-    const credential = GoogleAuthProvider.credential(null, 'test-access-token');
+    console.log('Creating test user with Google provider...');
+    const testUid = 'test-user-' + Date.now();
+    const testEmail = `test-${Date.now()}@example.com`;
+    
+    // Create a Google credential (this is a test-only approach for emulator)
+    const provider = new OAuthProvider('google.com');
+    const credential = GoogleAuthProvider.credential(
+      JSON.stringify({ sub: testUid, email: testEmail }),
+      'test-access-token'
+    );
+    
+    // Sign in with fake credential (only works in emulator)
     await signInWithCredential(auth, credential);
     const user = auth.currentUser;
-    console.log('Signed in as:', user?.uid);
+    
+    if (!user) {
+      throw new Error('Failed to authenticate test user');
+    }
+    
+    console.log('Signed in as:', user.uid, user.email);
 
     // 2. Add test workout to Firestore mirror
-    const docRef = await addDoc(collection(db, 'syncEvents', user?.uid, 'events'), {
+    console.log('Adding test workout to Firestore...');
+    // Create user document first (needed for collection group queries)
+    const userDocRef = doc(db, 'users', user.uid);
+    
+    // Create syncEvents collection for the user
+    const syncEventsRef = collection(db, 'syncEvents', user.uid, 'events');
+    
+    // Add a test document
+    const docRef = await addDoc(syncEventsRef, {
       title: 'Emulator Test Workout',
       time: new Date().toISOString(),
       status: 'synced'
     });
+    
     console.log('Test workout written to Firestore:', docRef.id);
 
     // 3. Mock calendar API call
     console.log('Testing mock calendar API...');
     try {
-      const calendarRes = await axios.get('http://localhost:5000/api/calendar/test');
+      const calendarRes = await axios.get('http://localhost:5000/calendar/test');
       console.log('Mock calendar API returned:', calendarRes.data);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Calendar API test failed:', error.message);
       
-      // Attempt creating mock calendar endpoint if needed
-      console.log('Adding test endpoint for calendar API...');
+      // Fallback to our server endpoint
       try {
-        // This is a request to add a test endpoint to the server during testing
-        await axios.post('http://localhost:5000/api/testing/add-calendar-mock');
-        console.log('Mock calendar endpoint created successfully');
-      } catch (mockError) {
-        console.error('Failed to create mock calendar endpoint:', mockError.message);
+        console.log('Trying server mock endpoint instead...');
+        const serverMockRes = await axios.get('http://localhost:5000/api/calendar/test');
+        console.log('Server mock endpoint returned:', serverMockRes.data);
+      } catch (serverError: any) {
+        console.error('Server mock endpoint also failed:', serverError.message);
       }
     }
 
     // 4. Assert Firestore state
-    const snapshot = await getDocs(collection(db, 'syncEvents', user?.uid, 'events'));
-    let documents = [];
+    console.log('Verifying Firestore state...');
+    const snapshot = await getDocs(syncEventsRef);
+    
+    const documents: any[] = [];
     snapshot.forEach(doc => {
       documents.push({ id: doc.id, ...doc.data() });
     });
+    
     console.log(`Found ${snapshot.size} workout(s) in Firestore:`, documents);
+    
+    if (snapshot.size === 0) {
+      throw new Error('No workouts found in Firestore');
+    }
     
     console.log('Emulator test completed successfully!');
     return { success: true, documents };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Emulator test failed:', error);
     return { success: false, error: error.message };
   }
@@ -78,7 +122,7 @@ async function runTest() {
 // Execute the test
 runTest()
   .then(result => {
-    console.log('Test result:', result.success ? 'PASSED' : 'FAILED');
+    console.log('Test result:', result.success ? 'PASSED ✅' : 'FAILED ❌');
     if (!result.success) {
       process.exit(1);
     }
