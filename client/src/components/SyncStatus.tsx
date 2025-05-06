@@ -195,9 +195,24 @@ export function SyncStatus() {
         credentials: 'same-origin'
       });
       
+      // Update last checked timestamp to show we made an API call
+      setLastChecked(new Date());
+      
       if (response.ok) {
         const calendars = await response.json();
         console.log(`Connection successful. Retrieved ${calendars.length} calendars.`);
+        
+        // Update connectivity status
+        setIsAuthIssue(false);
+        setConnectivityIssue(false);
+        setRecoveryAttempts(0);
+        
+        // Also update sync counts to keep everything in sync
+        if (user?.firebaseUid) {
+          const counts = await getEventStatusCounts(user.firebaseUid);
+          setSyncCounts(counts);
+        }
+        
         toast({
           title: "Connection test successful",
           description: `Successfully connected to Google Calendar. Found ${calendars.length} calendars.`,
@@ -205,6 +220,15 @@ export function SyncStatus() {
         });
       } else {
         console.error(`Connection test failed: ${response.status} ${response.statusText}`);
+        
+        // Update error status based on the error type
+        if (response.status === 401 || response.status === 403) {
+          setIsAuthIssue(true);
+          setRecoveryAttempts(prev => prev + 1);
+        } else {
+          setConnectivityIssue(true);
+        }
+        
         toast({
           title: "Connection test failed",
           description: `Error: ${response.status} ${response.statusText}`,
@@ -213,6 +237,10 @@ export function SyncStatus() {
       }
     } catch (error) {
       console.error("Connection test error:", error);
+      
+      // Update error state
+      setConnectivityIssue(true);
+      
       toast({
         title: "Connection test error",
         description: "Failed to connect to Google Calendar API",
@@ -577,11 +605,20 @@ export function SyncStatus() {
                   isAuthIssue ? 'Error - Authentication Problem' :
                   'OK'
                 }</p>
-                <p>User ID: {user?.firebaseUid || 'Unknown'}</p>
+                <p>User ID: {user?.id || 'Unknown'}</p>
+                <p>Firebase UID: {user?.firebaseUid || 'Unknown'}</p>
+                <p>Google Token Present: {user?.googleAccessToken ? 'Yes' : 'No'}</p>
                 <p>Initial Load Complete: {initialLoad ? 'No' : 'Yes'}</p>
                 <p>Recovery Attempts: {recoveryAttempts}</p>
                 <p>Pending Retries: {syncCounts.error}</p>
-                <p>Sync Counts: {JSON.stringify(syncCounts, null, 2)}</p>
+                <p>Sync Counts: {JSON.stringify({
+                  total: syncCounts.total,
+                  pending: syncCounts.pending,
+                  synced: syncCounts.synced,
+                  error: syncCounts.error,
+                  conflict: syncCounts.conflict,
+                  success: syncCounts.success
+                }, null, 2)}</p>
                 <p>Last Checked: {lastChecked?.toLocaleTimeString() || 'Never'}</p>
                 <p>Session Health: {
                   isAuthenticated && user?.firebaseUid && !isAuthIssue ? 'Healthy' :
