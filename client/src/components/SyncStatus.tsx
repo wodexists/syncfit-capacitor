@@ -445,6 +445,42 @@ export function SyncStatus() {
           </div>
         )}
         
+        {/* Firestore connectivity issues */}
+        {!loading && firestoreIssue && (
+          <div className="mt-2 text-xs bg-blue-50 border border-blue-200 rounded-md p-2">
+            <div className="flex items-center text-blue-800 font-medium mb-1">
+              <Database className="h-3 w-3 mr-1" />
+              Data storage connectivity issue
+            </div>
+            <div className="text-blue-700 space-y-1">
+              <p>• We're having trouble writing to our data storage</p>
+              <p>• Your events will still sync to Google Calendar</p>
+              <p>• Sync status tracking may be temporarily unavailable</p>
+            </div>
+            <div className="mt-2 flex justify-end">
+              <Button 
+                size="sm" 
+                variant="outline"
+                className="h-7 text-xs"
+                onClick={handleRefresh}
+                disabled={refreshing}
+              >
+                {refreshing ? (
+                  <>
+                    <RotateCw className="h-3 w-3 mr-1 animate-spin" />
+                    Retrying...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-3 w-3 mr-1" />
+                    Refresh Data Connection
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        )}
+        
         {/* Last synced timestamp */}
         {syncCounts.lastSyncedAt && (
           <div className="mt-2 text-xs text-muted-foreground flex items-center">
@@ -672,6 +708,20 @@ export function SyncStatus() {
                 {syncCounts.lastSyncedAt && (
                   <p>Last Sync: {new Date(syncCounts.lastSyncedAt).toLocaleString()}</p>
                 )}
+                
+                <p className="font-semibold text-slate-700 border-b border-slate-200 pb-1 mt-2">Firestore Status:</p>
+                <p>Firestore Connection: <span className={firestoreIssue ? 'text-red-600' : 'text-green-600'}>
+                  {firestoreIssue ? 'Error - Connection Problem' : 'Connected'}
+                </span></p>
+                <p>Sync Events Count: <span className={firestoreEvents.length > 0 ? 'text-green-600' : 'text-amber-600'}>
+                  {firestoreEvents.length}
+                </span></p>
+                {firestoreEvents.length > 0 && (
+                  <p>Last Sync Event: {new Date((firestoreEvents[0]?.timestamp?.toDate?.() || new Date())).toLocaleString()}</p>
+                )}
+                <p>Firebase Project ID: <span className={import.meta.env.VITE_FIREBASE_PROJECT_ID ? 'text-green-600' : 'text-red-600'}>
+                  {import.meta.env.VITE_FIREBASE_PROJECT_ID || 'Missing'}
+                </span></p>
                 
                 <p className="font-semibold text-slate-700 border-b border-slate-200 pb-1 mt-2">Detailed Debug Info:</p>
                 <p>Timestamp: {new Date().toISOString()}</p>

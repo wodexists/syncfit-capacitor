@@ -1,5 +1,8 @@
 import { doc, collection, addDoc, updateDoc, getDocs, query, where, Timestamp, Firestore } from "firebase/firestore";
-import { db } from "./firebase";
+import { db as firestoreDb } from "./firebase";
+
+// Using explicit type casting to avoid TypeScript "implicitly has an 'any' type" errors
+const db: Firestore = firestoreDb as Firestore;
 
 /**
  * Log sync events to Firestore for tracking and debugging
