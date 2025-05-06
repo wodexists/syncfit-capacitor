@@ -49,11 +49,25 @@ export interface EventWithReminders extends calendar_v3.Schema$Event {
  * @returns OAuth2 client instance
  */
 function createOAuth2Client(accessToken: string, refreshToken?: string) {
+  // Verify that credentials exist
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+    console.error('Missing Google OAuth credentials - GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET not set');
+    throw new Error('Google OAuth credentials not configured');
+  }
+  
+  console.log('Creating OAuth2 client with credentials');
+  console.log(`Client ID available: ${process.env.GOOGLE_CLIENT_ID ? 'Yes' : 'No'}`);
+  console.log(`Client Secret available: ${process.env.GOOGLE_CLIENT_SECRET ? 'Yes' : 'No'}`);
+  console.log(`Access token available: ${accessToken ? 'Yes (length: ' + accessToken.length + ')' : 'No'}`);
+  console.log(`Refresh token available: ${refreshToken ? 'Yes (length: ' + refreshToken.length + ')' : 'No'}`);
+  
+  // Create the OAuth client
   const oauth2Client = new google.auth.OAuth2(
-    // These params aren't needed for token-based auth but may be required for refresh token usage
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
-    "postmessage" // Using postmessage as redirect URI is common for popup-based auth
+    // Using the Firebase auth handler for configured redirect URI
+    // This matches what's configured in the Google Cloud Console
+    "https://fit-sync-1-replnfaust.replit.app/__/auth/handler"
   );
   
   const credentials: any = {
@@ -67,9 +81,15 @@ function createOAuth2Client(accessToken: string, refreshToken?: string) {
   
   oauth2Client.setCredentials(credentials);
   
-  // Setup token refresh handler
+  // Setup token refresh handler with improved error handling and logging
   oauth2Client.on('tokens', (tokens) => {
     console.log('New tokens received during refresh');
+    if (tokens.access_token) {
+      console.log('Access token refreshed successfully');
+    }
+    if (tokens.refresh_token) {
+      console.log('Refresh token also refreshed - this is unusual and should be stored');
+    }
     // You can implement token persistence here (e.g., update user record in database)
     // This event fires when tokens are refreshed automatically
   });
