@@ -1,0 +1,33 @@
+{
+    "syncEvents": [
+        {
+            "name": "projects/syncfit-dev/databases/(default)/documents/syncEvents/test-user",
+            "createTime": "2025-05-06T09:00:00.000000Z",
+            "updateTime": "2025-05-06T09:00:00.000000Z"
+        }
+    ],
+    "events": [
+        {
+            "name": "projects/syncfit-dev/databases/(default)/documents/syncEvents/test-user/events/test-event-1",
+            "createTime": "2025-05-06T09:00:00.000000Z",
+            "updateTime": "2025-05-06T09:00:00.000000Z",
+            "fields": {
+                "title": {
+                    "stringValue": "Morning Workout"
+                },
+                "start": {
+                    "stringValue": "2025-05-06T10:00:00Z"
+                },
+                "end": {
+                    "stringValue": "2025-05-06T11:00:00Z"
+                },
+                "status": {
+                    "stringValue": "synced"
+                },
+                "source": {
+                    "stringValue": "SyncFit"
+                }
+            }
+        }
+    ]
+}
