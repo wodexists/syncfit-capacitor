@@ -1652,6 +1652,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
   
+  // New endpoint to verify Google OAuth credentials
+  app.get('/api/calendar/oauth-config-check', (req: Request, res: Response) => {
+    console.log('Checking Google OAuth configuration...');
+    
+    // Check Google credentials
+    const clientIdAvailable = !!process.env.GOOGLE_CLIENT_ID;
+    const clientSecretAvailable = !!process.env.GOOGLE_CLIENT_SECRET;
+    
+    // Get information about the active environment
+    const env = process.env.NODE_ENV || 'development';
+    const host = req.headers.host || 'unknown';
+    
+    // Log detailed information for debugging
+    console.log(`Google Client ID available: ${clientIdAvailable ? 'Yes' : 'No'}`);
+    console.log(`Google Client Secret available: ${clientSecretAvailable ? 'Yes' : 'No'}`);
+    console.log(`Current environment: ${env}`);
+    console.log(`Current host: ${host}`);
+    
+    // Get the Firebase configuration for reference
+    const firebaseProjectId = process.env.FIREBASE_PROJECT_ID || 'Not configured';
+    
+    // Return configuration status
+    res.json({
+      success: true,
+      message: 'Google OAuth configuration check',
+      config: {
+        googleOAuth: {
+          clientIdConfigured: clientIdAvailable,
+          clientSecretConfigured: clientSecretAvailable,
+          redirectUri: "https://fit-sync-1-replnfaust.replit.app/__/auth/handler"
+        },
+        environment: {
+          nodeEnv: env,
+          host,
+          timestamp: new Date().toISOString()
+        },
+        firebaseIntegration: {
+          projectId: firebaseProjectId,
+          configured: !!process.env.FIREBASE_PROJECT_ID
+        }
+      }
+    });
+  });
+  
   app.post('/api/testing/add-calendar-mock', (req: Request, res: Response) => {
     console.log('Adding mock calendar test endpoint');
     res.json({ 

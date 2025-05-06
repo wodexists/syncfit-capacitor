@@ -137,10 +137,18 @@ const db = initializeFirestoreDB();
 
 // Configure Google Auth Provider with required scopes for Calendar
 const provider = new GoogleAuthProvider();
+// First, add the calendar scopes which are most important
 provider.addScope('https://www.googleapis.com/auth/calendar');
 provider.addScope('https://www.googleapis.com/auth/calendar.events');
+provider.addScope('https://www.googleapis.com/auth/calendar.readonly');
+// Then profile information scopes
 provider.addScope('profile');
 provider.addScope('email');
+// Ensure we get offline access for refresh tokens
+provider.setCustomParameters({
+  access_type: 'offline',
+  prompt: 'consent'
+});
 
 // For popup detection
 let popupSupported = true;
