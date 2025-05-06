@@ -11,31 +11,28 @@ echo -e "${YELLOW}===============================================${NC}"
 echo -e "${YELLOW}  SyncFit Google Calendar API Testing Suite    ${NC}"
 echo -e "${YELLOW}===============================================${NC}"
 
-# Make sure TypeScript is installed
-if ! command -v npx &> /dev/null; then
-    echo -e "${RED}Error: npx command not found. Make sure Node.js is installed.${NC}"
-    exit 1
-fi
-
-# Run specific API-related tests
+# Run each test directly for simplicity
 echo -e "\n${BLUE}Running token refresh test...${NC}"
-npx tsx test-runner.ts token-refresh
+npx tsx cases/test-token-refresh.ts
+TOKEN_REFRESH_RESULT=$?
 
 echo -e "\n${BLUE}Running API intercept test...${NC}"
-npx tsx test-runner.ts api-intercept
+npx tsx cases/test-api-intercept.ts
+API_INTERCEPT_RESULT=$?
 
 echo -e "\n${BLUE}Running reliability layer test...${NC}"
-npx tsx test-runner.ts reliability
+npx tsx cases/test-reliability-layer.ts
+RELIABILITY_RESULT=$?
 
-# Exit with the last command's exit code
-EXIT_CODE=$?
-
-if [ $EXIT_CODE -eq 0 ]; then
-    echo -e "\n${GREEN}All API tests have passed successfully!${NC}"
+# Check overall results
+if [ $TOKEN_REFRESH_RESULT -eq 0 ] && [ $API_INTERCEPT_RESULT -eq 0 ] && [ $RELIABILITY_RESULT -eq 0 ]; then
+    echo -e "\n${GREEN}===============================================${NC}"
+    echo -e "${GREEN}  All Google Calendar API tests have passed!  ${NC}"
     echo -e "${GREEN}===============================================${NC}"
+    exit 0
 else
-    echo -e "\n${RED}Some API tests have failed. Please check the logs above for details.${NC}"
+    echo -e "\n${RED}===============================================${NC}"
+    echo -e "${RED}  Some Google Calendar API tests have failed!  ${NC}"
     echo -e "${RED}===============================================${NC}"
+    exit 1
 fi
-
-exit $EXIT_CODE
