@@ -1,164 +1,108 @@
-// Workout mock implementation
+// Mock implementation for workout functionality
 
-interface Workout {
-  id: number;
-  name: string;
-  description: string;
-  imageUrl: string;
-  duration: number;
-  categoryId?: number;
-}
+// In-memory store of scheduled workouts
+const scheduledWorkouts: Map<string, any[]> = new Map();
+let nextWorkoutId = 1;
 
-interface ScheduledWorkout {
-  id: number;
-  userId: string;
+/**
+ * Create a scheduled workout
+ * @param userId User ID to create workout for
+ * @param workoutData Workout data
+ * @returns Created workout
+ */
+export async function createScheduledWorkout(userId: string, workoutData: {
   workoutId: number;
   startTime: string;
   endTime: string;
-  calendarEventId: string;
-  completed?: boolean;
-  rating?: number;
-}
-
-// In-memory storage
-const mockWorkouts: Record<number, Workout> = {
-  1: {
-    id: 1,
-    name: 'Morning Yoga',
-    description: 'Start your day with energizing yoga',
-    imageUrl: 'https://example.com/yoga.jpg',
-    duration: 30,
-    categoryId: 1
-  },
-  2: {
-    id: 2,
-    name: 'HIIT Workout',
-    description: 'High intensity interval training',
-    imageUrl: 'https://example.com/hiit.jpg',
-    duration: 20,
-    categoryId: 2
-  },
-  3: {
-    id: 3,
-    name: 'Strength Training',
-    description: 'Full body strength workout',
-    imageUrl: 'https://example.com/strength.jpg',
-    duration: 45,
-    categoryId: 3
-  }
-};
-
-const mockCategories: Record<number, { id: number, name: string }> = {
-  1: { id: 1, name: 'Yoga' },
-  2: { id: 2, name: 'Cardio' },
-  3: { id: 3, name: 'Strength' }
-};
-
-const mockScheduledWorkouts: Record<string, ScheduledWorkout[]> = {};
-let scheduledWorkoutIdCounter = 1;
-
-export async function getWorkouts(): Promise<Workout[]> {
-  console.log('[WORKOUT MOCK] Getting all workouts');
-  return Promise.resolve(Object.values(mockWorkouts));
-}
-
-export async function getWorkoutById(workoutId: number): Promise<Workout | null> {
-  console.log(`[WORKOUT MOCK] Getting workout by ID: ${workoutId}`);
-  return Promise.resolve(mockWorkouts[workoutId] || null);
-}
-
-export async function getWorkoutsByCategory(categoryId: number): Promise<Workout[]> {
-  console.log(`[WORKOUT MOCK] Getting workouts by category: ${categoryId}`);
-  return Promise.resolve(
-    Object.values(mockWorkouts).filter(w => w.categoryId === categoryId)
-  );
-}
-
-export async function getScheduledWorkouts(userId: string): Promise<ScheduledWorkout[]> {
-  console.log(`[WORKOUT MOCK] Getting scheduled workouts for user: ${userId}`);
-  return Promise.resolve(mockScheduledWorkouts[userId] || []);
-}
-
-export async function getUpcomingWorkouts(userId: string): Promise<ScheduledWorkout[]> {
-  console.log(`[WORKOUT MOCK] Getting upcoming workouts for user: ${userId}`);
+  calendarEventId?: string;
+}) {
+  console.log(`Mock: Creating scheduled workout for user ${userId}`);
   
-  const now = new Date().toISOString();
-  
-  return Promise.resolve(
-    (mockScheduledWorkouts[userId] || [])
-      .filter(w => w.startTime > now)
-      .sort((a, b) => a.startTime.localeCompare(b.startTime))
-  );
-}
-
-export async function createScheduledWorkout(
-  userId: string,
-  workoutData: {
-    workoutId: number;
-    startTime: string;
-    endTime: string;
-    calendarEventId: string;
-  }
-): Promise<ScheduledWorkout> {
-  console.log(`[WORKOUT MOCK] Creating scheduled workout for user: ${userId}`);
-  
-  const newWorkout: ScheduledWorkout = {
-    id: scheduledWorkoutIdCounter++,
+  // Create the scheduled workout
+  const scheduledWorkout = {
+    id: nextWorkoutId++,
     userId,
     workoutId: workoutData.workoutId,
     startTime: workoutData.startTime,
     endTime: workoutData.endTime,
     calendarEventId: workoutData.calendarEventId,
-    completed: false
+    status: 'scheduled',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
   };
   
-  if (!mockScheduledWorkouts[userId]) {
-    mockScheduledWorkouts[userId] = [];
-  }
+  // Add to user's scheduled workouts
+  const workouts = scheduledWorkouts.get(userId) || [];
+  workouts.push(scheduledWorkout);
+  scheduledWorkouts.set(userId, workouts);
   
-  mockScheduledWorkouts[userId].push(newWorkout);
-  
-  return Promise.resolve(newWorkout);
+  console.log(`Mock: Scheduled workout created with ID: ${scheduledWorkout.id}`);
+  return scheduledWorkout;
 }
 
-export async function updateScheduledWorkout(
-  userId: string,
-  workoutId: number,
-  updates: Partial<ScheduledWorkout>
-): Promise<ScheduledWorkout | null> {
-  console.log(`[WORKOUT MOCK] Updating scheduled workout: ${workoutId} for user: ${userId}`);
+/**
+ * Get scheduled workouts for a user
+ * @param userId User ID to get workouts for
+ * @returns List of scheduled workouts
+ */
+export async function getScheduledWorkouts(userId: string) {
+  console.log(`Mock: Getting scheduled workouts for user ${userId}`);
   
-  const userWorkouts = mockScheduledWorkouts[userId] || [];
-  const workoutIndex = userWorkouts.findIndex(w => w.id === workoutId);
+  const workouts = scheduledWorkouts.get(userId) || [];
+  console.log(`Mock: Found ${workouts.length} scheduled workouts`);
+  return workouts;
+}
+
+/**
+ * Update a scheduled workout
+ * @param userId User ID
+ * @param workoutId Workout ID to update
+ * @param updates Updates to apply
+ * @returns Updated workout
+ */
+export async function updateScheduledWorkout(userId: string, workoutId: number, updates: any) {
+  console.log(`Mock: Updating scheduled workout ${workoutId} for user ${userId}`);
   
-  if (workoutIndex === -1) {
-    return Promise.resolve(null);
+  const workouts = scheduledWorkouts.get(userId) || [];
+  const index = workouts.findIndex(w => w.id === workoutId);
+  
+  if (index === -1) {
+    throw new Error(`Scheduled workout ${workoutId} not found`);
   }
   
-  const updatedWorkout = {
-    ...userWorkouts[workoutIndex],
-    ...updates
+  // Update the workout
+  workouts[index] = {
+    ...workouts[index],
+    ...updates,
+    updatedAt: new Date().toISOString()
   };
   
-  userWorkouts[workoutIndex] = updatedWorkout;
+  scheduledWorkouts.set(userId, workouts);
+  console.log(`Mock: Scheduled workout updated successfully`);
   
-  return Promise.resolve(updatedWorkout);
+  return workouts[index];
 }
 
-export async function deleteScheduledWorkout(
-  userId: string,
-  workoutId: number
-): Promise<boolean> {
-  console.log(`[WORKOUT MOCK] Deleting scheduled workout: ${workoutId} for user: ${userId}`);
+/**
+ * Delete a scheduled workout
+ * @param userId User ID
+ * @param workoutId Workout ID to delete
+ * @returns Success indicator
+ */
+export async function deleteScheduledWorkout(userId: string, workoutId: number) {
+  console.log(`Mock: Deleting scheduled workout ${workoutId} for user ${userId}`);
   
-  const userWorkouts = mockScheduledWorkouts[userId] || [];
-  const workoutIndex = userWorkouts.findIndex(w => w.id === workoutId);
+  const workouts = scheduledWorkouts.get(userId) || [];
+  const index = workouts.findIndex(w => w.id === workoutId);
   
-  if (workoutIndex === -1) {
-    return Promise.resolve(false);
+  if (index === -1) {
+    throw new Error(`Scheduled workout ${workoutId} not found`);
   }
   
-  userWorkouts.splice(workoutIndex, 1);
+  // Remove the workout
+  workouts.splice(index, 1);
+  scheduledWorkouts.set(userId, workouts);
   
-  return Promise.resolve(true);
+  console.log(`Mock: Scheduled workout deleted successfully`);
+  return true;
 }

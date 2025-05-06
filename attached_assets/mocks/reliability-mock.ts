@@ -1,140 +1,191 @@
-// Reliability layer mock implementation
+// Mock implementation for reliability layer
 
-interface PendingEvent {
-  id: string;
-  userId: string;
-  summary: string;
-  startTime: string;
-  endTime: string;
-  status: 'pending' | 'synced' | 'failed';
-  calendarEventId?: string;
-  htmlLink?: string;
-  createdAt: string;
-  updatedAt: string;
-  retryCount: number;
-}
+// In-memory stores for reliability layer
+const pendingEvents: Map<string, any[]> = new Map();
+const failedEvents: Map<string, any[]> = new Map();
+let nextEventId = 1;
 
-// In-memory storage
-const mockPendingEvents: Record<string, PendingEvent[]> = {};
-let pendingEventIdCounter = 1;
-
-// Generate a unique ID for events
-function generateId(): string {
-  return `pending_${pendingEventIdCounter++}`;
-}
-
+/**
+ * Create a pending calendar event in the reliability layer
+ * @param userId User ID
+ * @param title Event title
+ * @param startTime Start time
+ * @param endTime End time
+ * @returns Created pending event
+ */
 export async function createPendingEvent(
   userId: string,
-  summary: string,
+  title: string,
   startTime: string,
   endTime: string
-): Promise<PendingEvent> {
-  console.log(`[RELIABILITY MOCK] Creating pending event for user: ${userId}`);
+) {
+  console.log(`Mock: Creating pending event for user ${userId}`);
   
-  const now = new Date().toISOString();
-  
-  const newEvent: PendingEvent = {
-    id: generateId(),
+  const pendingEvent = {
+    id: `pending_${nextEventId++}`,
     userId,
-    summary,
+    title,
     startTime,
     endTime,
     status: 'pending',
-    createdAt: now,
-    updatedAt: now,
-    retryCount: 0
+    calendarEventId: null,
+    eventLink: null,
+    createdAt: new Date().toISOString(),
+    lastAttempt: new Date().toISOString(),
+    attempts: 1,
+    error: null
   };
   
-  if (!mockPendingEvents[userId]) {
-    mockPendingEvents[userId] = [];
-  }
+  // Add to user's pending events
+  const events = pendingEvents.get(userId) || [];
+  events.push(pendingEvent);
+  pendingEvents.set(userId, events);
   
-  mockPendingEvents[userId].push(newEvent);
-  
-  return Promise.resolve(newEvent);
+  console.log(`Mock: Pending event created with ID: ${pendingEvent.id}`);
+  return pendingEvent;
 }
 
+/**
+ * Get pending events for a user
+ * @param userId User ID
+ * @returns List of pending events
+ */
+export async function getPendingEvents(userId: string) {
+  console.log(`Mock: Getting pending events for user ${userId}`);
+  
+  const events = pendingEvents.get(userId) || [];
+  const pendingList = events.filter(e => e.status === 'pending');
+  
+  console.log(`Mock: Found ${pendingList.length} pending events`);
+  return pendingList;
+}
+
+/**
+ * Update event status after successful sync
+ * @param userId User ID
+ * @param pendingId Pending event ID
+ * @param calendarEventId Google Calendar event ID
+ * @param eventLink Link to event in Google Calendar
+ * @returns Updated event
+ */
 export async function updateEventAfterSync(
   userId: string,
-  pendingEventId: string,
+  pendingId: string,
   calendarEventId: string,
-  htmlLink: string
-): Promise<PendingEvent | null> {
-  console.log(`[RELIABILITY MOCK] Updating event after sync for user: ${userId}`);
+  eventLink: string
+) {
+  console.log(`Mock: Updating event ${pendingId} after sync for user ${userId}`);
   
-  const userEvents = mockPendingEvents[userId] || [];
-  const eventIndex = userEvents.findIndex(e => e.id === pendingEventId);
+  const events = pendingEvents.get(userId) || [];
+  const index = events.findIndex(e => e.id === pendingId);
   
-  if (eventIndex === -1) {
-    return Promise.resolve(null);
+  if (index === -1) {
+    throw new Error(`Pending event ${pendingId} not found`);
   }
   
-  const updatedEvent: PendingEvent = {
-    ...userEvents[eventIndex],
+  // Update the event
+  events[index] = {
+    ...events[index],
     status: 'synced',
     calendarEventId,
-    htmlLink,
-    updatedAt: new Date().toISOString()
+    eventLink,
+    lastAttempt: new Date().toISOString()
   };
   
-  userEvents[eventIndex] = updatedEvent;
+  pendingEvents.set(userId, events);
+  console.log(`Mock: Event updated to synced status successfully`);
   
-  return Promise.resolve(updatedEvent);
+  return events[index];
 }
 
+/**
+ * Mark an event as failed
+ * @param userId User ID
+ * @param pendingId Pending event ID
+ * @param errorMessage Error message
+ * @returns Updated event
+ */
 export async function markEventAsFailed(
   userId: string,
-  pendingEventId: string,
-  error: string
-): Promise<PendingEvent | null> {
-  console.log(`[RELIABILITY MOCK] Marking event as failed for user: ${userId}`);
+  pendingId: string,
+  errorMessage: string
+) {
+  console.log(`Mock: Marking event ${pendingId} as failed for user ${userId}`);
   
-  const userEvents = mockPendingEvents[userId] || [];
-  const eventIndex = userEvents.findIndex(e => e.id === pendingEventId);
+  const events = pendingEvents.get(userId) || [];
+  const index = events.findIndex(e => e.id === pendingId);
   
-  if (eventIndex === -1) {
-    return Promise.resolve(null);
+  if (index === -1) {
+    throw new Error(`Pending event ${pendingId} not found`);
   }
   
-  const event = userEvents[eventIndex];
-  
-  const updatedEvent: PendingEvent = {
-    ...event,
+  // Update the event
+  const updatedEvent = {
+    ...events[index],
     status: 'failed',
-    retryCount: event.retryCount + 1,
-    updatedAt: new Date().toISOString()
+    lastAttempt: new Date().toISOString(),
+    attempts: events[index].attempts + 1,
+    error: errorMessage
   };
   
-  userEvents[eventIndex] = updatedEvent;
+  events[index] = updatedEvent;
+  pendingEvents.set(userId, events);
   
-  return Promise.resolve(updatedEvent);
+  // Add to failed events list
+  const failedList = failedEvents.get(userId) || [];
+  failedList.push(updatedEvent);
+  failedEvents.set(userId, failedList);
+  
+  console.log(`Mock: Event marked as failed successfully`);
+  return updatedEvent;
 }
 
-export async function getPendingEvents(userId: string): Promise<PendingEvent[]> {
-  console.log(`[RELIABILITY MOCK] Getting pending events for user: ${userId}`);
+/**
+ * Get failed events for a user
+ * @param userId User ID
+ * @returns List of failed events
+ */
+export async function getFailedEvents(userId: string) {
+  console.log(`Mock: Getting failed events for user ${userId}`);
   
-  const userEvents = mockPendingEvents[userId] || [];
-  return Promise.resolve(userEvents.filter(e => e.status === 'pending'));
+  const events = failedEvents.get(userId) || [];
+  console.log(`Mock: Found ${events.length} failed events`);
+  
+  return events;
 }
 
-export async function getFailedEvents(userId: string): Promise<PendingEvent[]> {
-  console.log(`[RELIABILITY MOCK] Getting failed events for user: ${userId}`);
+/**
+ * Retry failed events
+ * @param userId User ID
+ * @returns List of events that were retried
+ */
+export async function retryFailedEvents(userId: string) {
+  console.log(`Mock: Retrying failed events for user ${userId}`);
   
-  const userEvents = mockPendingEvents[userId] || [];
-  return Promise.resolve(userEvents.filter(e => e.status === 'failed'));
-}
-
-export async function retryFailedEvents(userId: string): Promise<PendingEvent[]> {
-  console.log(`[RELIABILITY MOCK] Retrying failed events for user: ${userId}`);
+  const events = failedEvents.get(userId) || [];
   
-  const userEvents = mockPendingEvents[userId] || [];
-  const failedEvents = userEvents.filter(e => e.status === 'failed');
+  // Update all failed events to pending status
+  const retriedEvents = events.map(event => ({
+    ...event,
+    status: 'pending',
+    lastAttempt: new Date().toISOString()
+  }));
   
-  // Mark all as pending again for retry
-  for (const event of failedEvents) {
-    event.status = 'pending';
-    event.updatedAt = new Date().toISOString();
+  // Update the pending events list
+  const pendingList = pendingEvents.get(userId) || [];
+  
+  for (const event of retriedEvents) {
+    const index = pendingList.findIndex(e => e.id === event.id);
+    if (index !== -1) {
+      pendingList[index] = event;
+    }
   }
   
-  return Promise.resolve(failedEvents);
+  pendingEvents.set(userId, pendingList);
+  
+  // Clear failed events
+  failedEvents.set(userId, []);
+  
+  console.log(`Mock: Retried ${retriedEvents.length} failed events`);
+  return retriedEvents;
 }

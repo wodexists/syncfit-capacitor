@@ -1,51 +1,75 @@
-// Authentication mock implementation
+// Mock authentication implementation for testing
 
 interface User {
   uid: string;
   email: string;
-  displayName: string;
+  name?: string;
+  googleId?: string;
+  googleAccessToken?: string;
+  googleRefreshToken?: string;
 }
 
+// In-memory store of test users
+const users: Map<string, User> = new Map();
 let currentUser: User | null = null;
 
-export async function initAuth(): Promise<void> {
-  console.log('[AUTH MOCK] Initializing auth system');
+/**
+ * Initialize the authentication system
+ */
+export async function initAuth() {
+  users.clear();
   currentUser = null;
-  return Promise.resolve();
+  console.log('Mock: Auth system initialized');
 }
 
-export async function signInWithGoogle(userData: { email: string, name: string }): Promise<User> {
-  console.log(`[AUTH MOCK] Signing in user: ${userData.email}`);
+/**
+ * Sign in with Google
+ * @param userData User data for mock signin
+ * @returns The signed-in user
+ */
+export async function signInWithGoogle(userData: { 
+  email: string; 
+  name: string;
+  googleAccessToken?: string;
+  googleRefreshToken?: string;
+}): Promise<User> {
+  // Generate a UID based on email
+  const uid = `user_${userData.email.replace(/[^a-zA-Z0-9]/g, '_')}`;
   
-  // Create mock user with deterministic UID based on email
-  const uid = `user_${Buffer.from(userData.email).toString('hex').substring(0, 8)}`;
-  
-  currentUser = {
+  // Create or update the user
+  const user: User = {
     uid,
     email: userData.email,
-    displayName: userData.name
+    name: userData.name,
+    googleId: `google_${uid}`,
+    googleAccessToken: userData.googleAccessToken || 'mock_access_token',
+    googleRefreshToken: userData.googleRefreshToken || 'mock_refresh_token'
   };
   
-  return Promise.resolve(currentUser);
-}
-
-export async function signOut(): Promise<void> {
-  console.log('[AUTH MOCK] Signing out user');
-  currentUser = null;
-  return Promise.resolve();
-}
-
-export async function getCurrentUser(): Promise<User | null> {
-  console.log('[AUTH MOCK] Getting current user');
-  return Promise.resolve(currentUser);
-}
-
-export async function getAuthToken(): Promise<string | null> {
-  if (!currentUser) {
-    return Promise.resolve(null);
-  }
+  users.set(uid, user);
+  currentUser = user;
   
-  // Create a mock JWT token
-  const mockToken = `mock_token_${currentUser.uid}`;
-  return Promise.resolve(mockToken);
+  console.log(`Mock: Signed in user: ${user.email} with UID: ${user.uid}`);
+  
+  return user;
+}
+
+/**
+ * Get the current user
+ * @returns The currently signed-in user or null
+ */
+export function getCurrentUser(): User | null {
+  return currentUser;
+}
+
+/**
+ * Sign out the current user
+ */
+export async function signOut() {
+  if (currentUser) {
+    console.log(`Mock: Signed out user: ${currentUser.email}`);
+    currentUser = null;
+  } else {
+    console.log('Mock: No user signed in');
+  }
 }
