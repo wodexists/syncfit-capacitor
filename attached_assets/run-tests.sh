@@ -18,7 +18,7 @@ fi
 
 # Run the tests
 echo -e "\n${YELLOW}Starting test execution...${NC}"
-npx tsx attached_assets/test-runner.ts
+npx tsx test-runner.ts
 
 # Capture the exit code
 EXIT_CODE=$?

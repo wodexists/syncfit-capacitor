@@ -5,6 +5,7 @@ import { runSmartSlotTest } from './cases/test-smart-slots';
 import { runWorkoutSchedulingTest } from './cases/test-schedule-workout';
 import { runConflictDetectionTest } from './cases/test-conflict-detection';
 import { runErrorHandlingTest } from './cases/test-error-handling';
+import { runReliabilityLayerTest } from './cases/test-reliability-layer';
 
 interface TestResult {
   name: string;
@@ -23,6 +24,7 @@ async function runTests() {
     results.push(await runWorkoutSchedulingTest());
     results.push(await runConflictDetectionTest());
     results.push(await runErrorHandlingTest());
+    results.push(await runReliabilityLayerTest());
   } catch (error) {
     console.error('Test execution failed:', error);
     process.exit(1);
