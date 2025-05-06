@@ -34,7 +34,9 @@ async function runFailureSimulationTest() {
       
       // This is an intentional failure test, so we exit with 1 to indicate failure
       console.log('❌ TEST FAILED AS EXPECTED - This is good for validation purposes');
-      process.exit(1);
+      setTimeout(() => {
+        process.exit(1);
+      }, 100);
     } else {
       // This is an unexpected error
       console.error('❌ Unexpected error during test:', error.message);
