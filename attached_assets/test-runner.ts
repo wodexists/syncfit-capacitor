@@ -6,6 +6,7 @@ import { runWorkoutSchedulingTest } from './cases/test-schedule-workout';
 import { runConflictDetectionTest } from './cases/test-conflict-detection';
 import { runErrorHandlingTest } from './cases/test-error-handling';
 import { runReliabilityLayerTest } from './cases/test-reliability-layer';
+import { runTokenRefreshTest } from './cases/test-token-refresh';
 
 interface TestResult {
   name: string;
@@ -25,6 +26,7 @@ async function runTests() {
     results.push(await runConflictDetectionTest());
     results.push(await runErrorHandlingTest());
     results.push(await runReliabilityLayerTest());
+    results.push(await runTokenRefreshTest());
   } catch (error) {
     console.error('Test execution failed:', error);
     process.exit(1);

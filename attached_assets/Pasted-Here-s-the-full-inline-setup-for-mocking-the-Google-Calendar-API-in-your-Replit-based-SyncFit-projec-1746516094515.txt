@@ -1,0 +1,96 @@
+Here’s the full inline setup for mocking the Google Calendar API in your Replit-based SyncFit project using nock. This lets you simulate real API calls without hitting the live Google Calendar endpoint.
+
+
+---
+
+1. Install Dependencies
+
+Ensure the following are in your package.json:
+
+"dependencies": {
+  "axios": "^1.6.5"
+},
+"devDependencies": {
+  "jest": "^29.6.4",
+  "nock": "^13.4.0",
+  "ts-jest": "^29.1.1"
+}
+
+Run:
+
+npm install
+
+
+---
+
+2. Mock Setup File
+
+Create this as tests/mocks/googleCalendarMock.ts:
+
+import nock from 'nock';
+
+export const mockGoogleCalendar = () => {
+  nock('https://www.googleapis.com')
+    .persist()
+    .get('/calendar/v3/calendars/primary/events')
+    .query(true)
+    .reply(200, {
+      items: [
+        {
+          id: 'event-123',
+          summary: 'Test Event',
+          start: { dateTime: '2025-05-06T16:00:00+01:00' },
+          end: { dateTime: '2025-05-06T17:00:00+01:00' }
+        }
+      ]
+    });
+
+  nock('https://www.googleapis.com')
+    .persist()
+    .post('/calendar/v3/calendars/primary/events')
+    .reply(200, {
+      id: 'new-event-456',
+      summary: 'Workout Session'
+    });
+};
+
+
+---
+
+3. Test File Using the Mock
+
+Create this as tests/googleCalendarSync.test.ts:
+
+import axios from 'axios';
+import { mockGoogleCalendar } from './mocks/googleCalendarMock';
+
+beforeAll(() => {
+  mockGoogleCalendar();
+});
+
+test('fetches mock calendar events', async () => {
+  const res = await axios.get('https://www.googleapis.com/calendar/v3/calendars/primary/events');
+  expect(res.status).toBe(200);
+  expect(res.data.items[0].summary).toBe('Test Event');
+});
+
+test('schedules a mock workout', async () => {
+  const res = await axios.post('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+    summary: 'Workout Session'
+  });
+  expect(res.status).toBe(200);
+  expect(res.data.id).toBe('new-event-456');
+});
+
+
+---
+
+4. Run the Tests
+
+npx jest tests/googleCalendarSync.test.ts
+
+
+---
+
+Let me know if you want this wrapped in a Replit-ready repo, or if you'd like to add token/refresh logic to the mock too.
+
