@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "420251650017",
+    "project_id": "syncfit-503fd",
+    "storage_bucket": "syncfit-503fd.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:420251650017:android:52701c2ec7688f798bb4a0",
+        "android_client_info": {
+          "package_name": "com.syncfit.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "420251650017-8m2jn4h1a4urskdfhn2v687art4u2cs5.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCwyP5qmKd21QgIv7cJfzQpu8z8DrnwqSg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "420251650017-8m2jn4h1a4urskdfhn2v687art4u2cs5.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
