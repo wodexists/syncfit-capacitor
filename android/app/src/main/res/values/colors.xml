@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Primary colors -->
+    <color name="colorPrimary">#007bff</color>
+    <color name="colorPrimaryDark">#0056b3</color>
+    <color name="colorAccent">#dc3545</color>
+
+    <!-- Additional colors -->
+    <color name="secondary">#6c757d</color>
+    <color name="success">#28a745</color>
+    <color name="warning">#ffc107</color>
+    <color name="info">#17a2b8</color>
+    <color name="light">#f8f9fa</color>
+    <color name="dark">#343a40</color>
+    
+    <!-- Text colors -->
+    <color name="textPrimary">#212529</color>
+    <color name="textSecondary">#6c757d</color>
+    <color name="textLight">#f8f9fa</color>
+</resources>

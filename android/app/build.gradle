@@ -1,4 +1,8 @@
-apply plugin: 'com.android.application'
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+    id 'com.google.gms.google-services'
+}
 
 android {
     namespace "com.syncfit.app"
@@ -12,6 +16,9 @@ android {
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
+        // Enable multidex support for better compatibility
+        multiDexEnabled true
+
         aaptOptions {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
@@ -23,39 +30,61 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+
+    kotlinOptions {
+        jvmTarget = '11' // Updated to match Java 11
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
 }
 
 repositories {
-    flatDir {
-        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
-    }
+    google()
+    mavenCentral()
+    maven { url 'https://jitpack.io' }
+    // Add Maven Central for Capacitor dependencies
+    maven { url 'https://repo1.maven.org/maven2/' }
 }
 
 dependencies {
-    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    implementation(files("${project.projectDir}/libs"))
+
+    // Kotlin - simplified to just the main stdlib as per Kotlin 1.8+ recommendations
+    implementation("org.jetbrains.kotlin:kotlin-stdlib:1.8.22")
+    // Removed redundant JDK7 and JDK8 specific dependencies
 
     // AndroidX core dependencies
-    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
-    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
-    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation("androidx.appcompat:appcompat:1.6.1")
+    implementation("androidx.appcompat:appcompat-resources:1.6.1")
+    implementation("androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion")
+    implementation("androidx.core:core-splashscreen:1.0.1")
+    implementation("androidx.multidex:multidex:2.0.1") // Added for multidex support
 
     // Firebase
-    implementation platform('com.google.firebase:firebase-bom:32.7.0')
-    implementation 'com.google.firebase:firebase-auth'
-    implementation 'com.google.firebase:firebase-firestore'
+    implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
+    implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.firebase:firebase-firestore") {
+        exclude group: 'com.google.firebase', module: 'firebase-analytics'
+    }
+
+    // Capacitor dependencies
+    implementation("com.capacitorjs:core:5.5.1")
+    implementation("com.capacitorjs:android:5.5.1")
+
+    // Add WebView dependency which is required by Capacitor
+    implementation("androidx.webkit:webkit:1.6.1")
 
     // Testing
-    testImplementation "junit:junit:$junitVersion"
-    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
-    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    testImplementation("junit:junit:$junitVersion")
+    androidTestImplementation("androidx.test.ext:junit:$androidxJunitVersion")
+    androidTestImplementation("androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion")
 }
 
-// Conditionally apply Firebase plugin if google-services.json is present
-try {
-    def servicesJSON = file('google-services.json')
-    if (servicesJSON.exists() && servicesJSON.text) {
+afterEvaluate {
+    if (file('google-services.json').exists()) {
         apply plugin: 'com.google.gms.google-services'
     }
-} catch (Exception e) {
-    logger.info("google-services.json not found or unreadable; google-services plugin not applied.")
 }
